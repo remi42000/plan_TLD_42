@@ -1,0 +1,1955 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Plan de tri & cartographie postale de la tournée 2402</title>
+  
+  <!-- Leaflet 1.9.4 CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #1e3a8a;
+      --primary-hover: #1e40af;
+      --accent-yellow: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-green: #10b981;
+      --bg-dark: #0f172a;
+      --sidebar-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text-main);
+      background-color: var(--bg-dark);
+      overflow: hidden;
+      height: 100vh;
+      height: 100dvh;
+      width: 100vw;
+      display: flex;
+    }
+
+    /* Layout structure */
+    #sidebar {
+      width: 440px;
+      min-width: 320px;
+      max-width: 500px;
+      height: 100%;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      z-index: 1000;
+      box-shadow: var(--shadow-xl);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #sidebar.collapsed {
+      transform: translateX(-100%);
+      margin-right: -440px;
+    }
+
+    #map-container {
+      flex: 1;
+      height: 100%;
+      position: relative;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      background-color: #e5e7eb;
+    }
+
+    /* Sidebar Header */
+    .sidebar-header {
+      padding: 12px 20px 8px 20px;
+      background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+      color: #ffffff;
+    }
+
+    .header-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 0;
+    }
+
+    .app-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .app-badge {
+      background: #fbbf24;
+      color: #78350f;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .header-subtext {
+      font-size: 0.8rem;
+      color: #93c5fd;
+      line-height: 1.35;
+      background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+      margin: -12px -16px 0 -16px;
+      padding: 0 20px 12px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Stats Quick Bar */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 10px 16px;
+      margin: -10px -16px 2px -16px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .stat-card {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 7px 8px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .stat-val {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #1e3a8a;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .stat-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-top: 2px;
+    }
+
+    /* Search & Filter Controls */
+    .controls-panel {
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #ffffff;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      flex-shrink: 0;
+      max-height: 54vh;
+      scrollbar-width: thin;
+      scrollbar-color: #64748b #f1f5f9;
+    }
+
+    .controls-panel::-webkit-scrollbar,
+    #stops-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .controls-panel::-webkit-scrollbar-track,
+    #stops-list::-webkit-scrollbar-track {
+      background: #e2e8f0;
+      border-radius: 4px;
+    }
+
+    .controls-panel::-webkit-scrollbar-thumb,
+    #stops-list::-webkit-scrollbar-thumb {
+      background: #64748b;
+      border-radius: 4px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .controls-panel.collapsed-panel {
+      height: 0 !important;
+      max-height: 0 !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      overflow: hidden !important;
+      border: none !important;
+    }
+
+    /* Draggable Horizontal Splitter Bar (on the red line between controls and ARRÊTS) */
+    .panel-resizer {
+      height: 18px;
+      background: #e2e8f0;
+      border-top: 1px solid #cbd5e1;
+      border-bottom: 1px solid #cbd5e1;
+      cursor: ns-resize;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      flex-shrink: 0;
+      user-select: none;
+      touch-action: none;
+      transition: background 0.15s;
+    }
+
+    .panel-resizer:hover, .panel-resizer.dragging {
+      background: #bfdbfe;
+      border-color: #60a5fa;
+    }
+
+    .panel-resizer-grip {
+      width: 38px;
+      height: 4px;
+      border-radius: 999px;
+      background: #64748b;
+    }
+
+    .panel-toggle-btn {
+      background: none;
+      border: none;
+      color: #334155;
+      font-size: 0.68rem;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .panel-toggle-btn:hover {
+      color: #1d4ed8;
+    }
+
+    .search-box-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-box-wrap svg {
+      position: absolute;
+      left: 12px;
+      width: 17px;
+      height: 17px;
+      color: #94a3b8;
+      pointer-events: none;
+    }
+
+    #search-input {
+      width: 100%;
+      padding: 9px 14px 9px 36px;
+      font-size: 0.86rem;
+      font-family: inherit;
+      border: 1.5px solid var(--border-color);
+      border-radius: 8px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    #search-input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .clear-search-btn {
+      position: absolute;
+      right: 10px;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 1.1rem;
+      display: none;
+      padding: 4px;
+    }
+
+    .clear-search-btn:hover {
+      color: #475569;
+    }
+
+    /* Filter Chips */
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .filter-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .chip-scroll-row {
+      display: flex;
+      gap: 5px;
+      overflow-x: auto;
+      padding-bottom: 3px;
+      scrollbar-width: thin;
+    }
+
+    .chip-scroll-row::-webkit-scrollbar {
+      height: 3px;
+    }
+    .chip-scroll-row::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+
+    .chip-btn {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 16px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .chip-btn:hover {
+      background: #e2e8f0;
+      color: #1e293b;
+    }
+
+    .chip-btn.active {
+      background: #1e3a8a;
+      color: #ffffff;
+      border-color: #1e3a8a;
+      box-shadow: 0 2px 4px rgba(30, 58, 138, 0.2);
+    }
+
+    .chip-badge {
+      font-size: 0.65rem;
+      background: rgba(0, 0, 0, 0.1);
+      padding: 1px 5px;
+      border-radius: 10px;
+    }
+    .chip-btn.active .chip-badge {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    /* Dropdown Selects */
+    .filter-select {
+      width: 100%;
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      font-size: 0.8rem;
+      background: #f8fafc;
+      color: #1e293b;
+      cursor: pointer;
+      outline: none;
+    }
+    .filter-select:focus {
+      border-color: #2563eb;
+    }
+
+    /* Toggles row */
+    .toggles-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 2px;
+    }
+
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+    }
+
+    .toggle-label input[type="checkbox"] {
+      accent-color: #1e3a8a;
+      cursor: pointer;
+      width: 15px;
+      height: 15px;
+    }
+
+    /* Round Selector Box (2402 / 2502 / Both) */
+    .rounds-selector-box {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      border: 1px solid #1e293b;
+    }
+
+    .round-check-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      line-height: 1.3;
+      user-select: none;
+    }
+
+    .round-check-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin-top: 1px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .round-check-name {
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .round-check-meta {
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    /* Dépôt & BAL markers */
+    .depot-dot-marker {
+      width: 22px;
+      height: 22px;
+      background: #7c3aed;
+      color: #ffffff;
+      border: 2.5px solid #ffffff;
+      border-radius: 6px;
+      font: 800 11px/17px 'JetBrains Mono', monospace;
+      text-align: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+      cursor: pointer;
+    }
+
+    .bal-dot-marker {
+      width: 28px;
+      height: 18px;
+      background: #334155;
+      color: #ffffff;
+      border: 2px solid #ffffff;
+      border-radius: 4px;
+      font: 800 8px/14px 'JetBrains Mono', monospace;
+      text-align: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+      cursor: pointer;
+    }
+
+    /* Stops List */
+    .list-header {
+      padding: 9px 16px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    #stops-list {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: #f8fafc;
+    }
+
+    /* Postal Stop Card (Strict Rule: Number on Top, Street on Bottom) */
+    .stop-card {
+      flex-shrink: 0;
+      background: #ffffff;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stop-card:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+      border-color: #93c5fd;
+    }
+
+    .stop-card.selected {
+      border: 2px solid #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    /* Top row: House Numbers & Business Annotations */
+    .card-top-row {
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #ffffff;
+      border-bottom: 1px dashed #f1f5f9;
+    }
+
+    .card-num-group {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .card-num {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #0f172a;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .card-cell-label {
+      font-size: 0.72rem;
+      color: #64748b;
+      font-weight: 600;
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .card-seq-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #64748b;
+      background: #f8fafc;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #e2e8f0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .card-poi-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    .card-battery-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    /* Bottom banner: Street Name */
+    .card-bottom-banner {
+      padding: 7px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #ffffff;
+      background: #1e3a8a;
+    }
+
+    .card-section-code {
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: rgba(0, 0, 0, 0.25);
+      color: #ffffff;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Floating toggle sidebar button */
+    .floating-toggle-btn {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 999;
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      padding: 9px 13px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-md);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #1e293b;
+      transition: all 0.2s;
+    }
+
+    .floating-toggle-btn:hover {
+      background: #f8fafc;
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* LEAFLET CUSTOM MARKER (Strict Rule: Number on Top, Street on Bottom — Compact & Translucent) */
+    :root {
+      --marker-opacity: 0.72;
+    }
+
+    .leaflet-div-icon {
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .postal-marker-box {
+      display: inline-flex;
+      flex-direction: column;
+      border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+      overflow: hidden;
+      cursor: pointer;
+      opacity: var(--marker-opacity);
+      backdrop-filter: blur(1.5px);
+      transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+      transform-origin: center center;
+      pointer-events: auto;
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      min-width: 22px;
+      max-width: 54px;
+      text-align: center;
+      user-select: none;
+    }
+
+    .postal-marker-box:hover {
+      opacity: 1 !important;
+      transform: scale(1.3) translateY(-3px);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+      z-index: 3000 !important;
+    }
+
+    /* Marker Top: Numbers & POI (Translucent) */
+    .marker-top-row {
+      background: rgba(255, 255, 255, 0.82);
+      color: #0f172a;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 1px 3px;
+      font-size: 9px;
+      line-height: 1.05;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+    }
+
+    /* Marker Bottom: Compact Street Banner */
+    .marker-bottom-banner {
+      background: #1e3a8a;
+      color: #ffffff;
+      font-size: 6px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 1px 3px;
+      line-height: 1.05;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 52px;
+      letter-spacing: -0.02em;
+    }
+
+    /* Battery Marker Variation */
+    .postal-marker-box.is-battery .marker-top-row {
+      background: rgba(254, 226, 226, 0.85);
+      color: #991b1b;
+    }
+    .postal-marker-box.is-battery .marker-bottom-banner {
+      background: rgba(220, 38, 38, 0.88) !important;
+    }
+
+    /* Business Marker Variation */
+    .postal-marker-box.is-business .marker-top-row {
+      background: rgba(254, 240, 138, 0.85);
+      color: #713f12;
+    }
+    .postal-marker-box.is-business .marker-bottom-banner {
+      background: rgba(217, 119, 6, 0.88) !important;
+    }
+
+    /* Compact Dot Marker (Number-only translucent circle/pill for default view) */
+    .postal-dot-marker {
+      min-width: 20px;
+      height: 20px;
+      padding: 0 4px;
+      border-radius: 999px;
+      background: #1e3a8a;
+      color: #ffffff;
+      opacity: var(--marker-opacity);
+      border: 1.5px solid rgba(255, 255, 255, 0.92);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    .postal-dot-marker:hover {
+      opacity: 1 !important;
+      transform: scale(1.35);
+      z-index: 3000 !important;
+    }
+
+    /* LEAFLET POPUP STYLES (Strict Rule: Number on Top, Street on Bottom) */
+    .leaflet-popup-content-wrapper {
+      padding: 0;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .leaflet-popup-content {
+      margin: 0;
+      width: 300px !important;
+    }
+
+    .popup-box {
+      display: flex;
+      flex-direction: column;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .popup-header-bar {
+      padding: 8px 14px;
+      background: #0f172a;
+      color: #ffffff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+    }
+
+    .popup-header-case {
+      font-weight: 800;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .popup-seq {
+      color: #94a3b8;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+    }
+
+    /* STRICT RULE IN POPUP: Number on top */
+    .popup-number-block {
+      padding: 12px 14px;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .popup-main-num {
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: #0f172a;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: -0.02em;
+    }
+
+    .popup-tag-badge {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    .popup-tag-badge.battery {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    .popup-tag-badge.business {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    /* STRICT RULE IN POPUP: Street Banner on bottom */
+    .popup-street-banner {
+      padding: 9px 14px;
+      background: #1e3a8a;
+      color: #ffffff;
+      font-size: 0.88rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .popup-details {
+      padding: 10px 14px;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.78rem;
+    }
+
+    .popup-detail-row {
+      display: flex;
+      justify-content: space-between;
+      color: #64748b;
+    }
+
+    .popup-detail-val {
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .popup-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 10px 14px;
+      background: #ffffff;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .popup-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s;
+    }
+
+    .popup-btn-sv,
+    .popup-btn-map {
+      background: #f1f5f9;
+      color: #0078A8;
+      border: 1px solid #cbd5e1;
+    }
+    .popup-btn-sv:hover,
+    .popup-btn-map:hover {
+      background: #e2e8f0;
+    }
+
+    /* Map Legend Box */
+    .map-legend-box {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-md);
+      font-size: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      line-height: 1.3;
+    }
+
+    .legend-title {
+      font-weight: 800;
+      color: #0f172a;
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+      margin-bottom: 2px;
+    }
+
+    .legend-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 12px;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+      #sidebar {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        max-width: 100%;
+        z-index: 1001;
+      }
+      .controls-panel {
+        max-height: 45vh;
+        padding-right: 12px;
+      }
+      .panel-resizer {
+        height: 26px;
+      }
+      #sidebar.collapsed {
+        transform: translateX(-100%);
+        margin-right: 0;
+        pointer-events: none;
+      }
+      .floating-toggle-btn {
+        top: 10px;
+        left: 54px;
+        padding: 8px 12px;
+        font-size: 0.82rem;
+        background: #1e3a8a;
+        color: #ffffff;
+        border: 1px solid rgba(255,255,255,0.25);
+      }
+      .floating-toggle-btn:hover {
+        background: #1e40af;
+      }
+    }
+    .leaflet-control-scale { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Floating Toggle Button for Sidebar -->
+  <button id="toggle-sidebar-btn" class="floating-toggle-btn" title="Afficher / Masquer le panneau">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+    <span>Filtres & Liste</span>
+  </button>
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <!-- Header -->
+    <div class="sidebar-header">
+      <div class="header-title-row">
+        <h1 class="app-title" style="flex-wrap: wrap;">
+          <span>📦 Tournée 2402</span>
+          <span class="app-badge">ANDRÉZIEUX-BOUTHÉON 42160</span>
+        </h1>
+        <button id="close-sidebar-btn" style="background:none; border:none; color:#fbbf24; cursor:pointer; display:inline-flex; align-items:center; gap:8px; text-align:right; padding:4px;" title="Fermer le volet pour voir la carte">
+          <span style="font-size:0.72rem; font-weight:700; line-height:1.2; max-width:135px; color:#fde68a;">Appuyer sur la croix pour voir la carte ➔</span>
+          <span style="font-size:1.35rem; font-weight:800; color:#ffffff; line-height:1;">✕</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Search & Filters -->
+    <div class="controls-panel">
+      <p class="header-subtext">Plan de tri & cartographie postale de la tournée 2402</p>
+
+      <!-- Stats Bar -->
+      <div class="stats-bar">
+        <div class="stat-card">
+          <div id="stat-total" class="stat-val">453</div>
+          <div class="stat-label">Arrêts</div>
+        </div>
+        <div class="stat-card">
+          <div id="stat-visible" class="stat-val">453</div>
+          <div class="stat-label">Visibles</div>
+        </div>
+        <div class="stat-card">
+          <div id="stat-batteries" class="stat-val" style="color: #dc2626;">61</div>
+          <div class="stat-label">Batteries</div>
+        </div>
+      </div>
+
+      <!-- Round Selector (2402 / 2502 / Both) -->
+      <div class="rounds-selector-box" id="rounds-selector-box">
+        <label class="round-check-row">
+          <input type="checkbox" class="round-checkbox" value="2402" checked style="accent-color: #0284c7;">
+          <div>
+            <span class="round-check-name" style="color: #38bdf8;">Tournée 2402</span>
+            <span class="round-check-meta">· 453 of 453 stops placed on the map · 1 dépôt</span>
+          </div>
+        </label>
+        <label class="round-check-row">
+          <input type="checkbox" class="round-checkbox" value="2502" checked style="accent-color: #10b981;">
+          <div>
+            <span class="round-check-name" style="color: #34d399;">Tournée 2502</span>
+            <span class="round-check-meta">· 500 of 501 stops placed on the map · 2 dépôts + 1 BAL</span>
+          </div>
+        </label>
+        <div class="chip-scroll-row" style="padding-top: 4px; border-top: 1px dashed #334155; margin-top: 2px;">
+          <button type="button" class="chip-btn active" data-round-preset="both" style="font-size:0.7rem; padding:3px 9px;">2402 + 2502 (Les deux)</button>
+          <button type="button" class="chip-btn" data-round-preset="2402" style="font-size:0.7rem; padding:3px 9px;">2402 seule</button>
+          <button type="button" class="chip-btn" data-round-preset="2502" style="font-size:0.7rem; padding:3px 9px;">2502 seule</button>
+        </div>
+      </div>
+
+      <!-- Search Input -->
+      <div class="search-box-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="search-input" placeholder="Rechercher rue, n°, case (ex: 53, Martouret, B1)...">
+        <button id="clear-search" class="clear-search-btn" title="Effacer">✕</button>
+      </div>
+
+      <!-- Section Filter Dropdown -->
+      <div class="filter-group">
+        <div class="filter-title">
+          <span>Case / Casier</span>
+          <span style="font-size:0.65rem; color:#94a3b8;">21 sections (B1 à D7)</span>
+        </div>
+        <select id="section-select" class="filter-select">
+          <option value="all">-- Toutes les cases (B1 à D7) --</option>
+          <option value="B1">Case B1</option><option value="B2">Case B2</option><option value="B3">Case B3</option><option value="B4">Case B4</option><option value="B5">Case B5</option><option value="B6">Case B6</option><option value="B7">Case B7</option><option value="C1">Case C1</option><option value="C2">Case C2</option><option value="C3">Case C3</option><option value="C4">Case C4</option><option value="C5">Case C5</option><option value="C6">Case C6</option><option value="C7">Case C7</option><option value="D1">Case D1</option><option value="D2">Case D2</option><option value="D3">Case D3</option><option value="D4">Case D4</option><option value="D5">Case D5</option><option value="D6">Case D6</option><option value="D7">Case D7</option>
+        </select>
+      </div>
+
+      <!-- Type Filter -->
+      <div class="filter-group">
+        <div class="filter-title">Type d'adresse</div>
+        <div class="chip-scroll-row">
+          <button class="chip-btn active" data-type="all">Tous</button>
+          <button class="chip-btn" data-type="battery">📮 Batteries (<span id="chip-bat-count">61</span>)</button>
+        </div>
+      </div>
+
+      <!-- Street Filter Dropdown -->
+      <div class="filter-group">
+        <div class="filter-title">
+          <span>Filtrer par Voie</span>
+          <span style="font-size:0.65rem; color:#94a3b8;">37 voies</span>
+        </div>
+        <select id="street-select" class="filter-select">
+          <option value="all">-- Toutes les voies (453 arrêts) --</option>
+          <option value="AVENUE JEAN MARTOURET">AVENUE JEAN MARTOURET (57)</option><option value="LOTISSEMENT CLOS DES PINS">LOTISSEMENT CLOS DES PINS (27)</option><option value="RUE DES JARRETIERES">RUE DES JARRETIERES (26)</option><option value="RUE EMILE REYMOND">RUE EMILE REYMOND (24)</option><option value="BOULEVARD JEAN JAURES">BOULEVARD JEAN JAURES (21)</option><option value="RUE MARCELLIN GIRINON">RUE MARCELLIN GIRINON (20)</option><option value="RUE DE LA LOIRE">RUE DE LA LOIRE (20)</option><option value="PLACE DU FOREZ">PLACE DU FOREZ (19)</option><option value="RUE DE LA FONTCHALON">RUE DE LA FONTCHALON (19)</option><option value="RUE DE LA FABRIQUE">RUE DE LA FABRIQUE (18)</option><option value="CHEMIN NEUF">CHEMIN NEUF (18)</option><option value="RUE DU CONFLUENT">RUE DU CONFLUENT (17)</option><option value="ALLEE DES VERNES">ALLEE DES VERNES (15)</option><option value="RUE BERNARD PALISSY">RUE BERNARD PALISSY (14)</option><option value="RUE HIPPOLYTE SAUZEA">RUE HIPPOLYTE SAUZEA (13)</option><option value="RUE D'URFE">RUE D'URFE (11)</option><option value="IMPASSE MARQUET">IMPASSE MARQUET (11)</option><option value="ALLEE DE L'ORCHIDEE">ALLEE DE L'ORCHIDEE (10)</option><option value="CHEMIN DE COLLONGES">CHEMIN DE COLLONGES (10)</option><option value="RUE ALFRED NOBEL">RUE ALFRED NOBEL (9)</option><option value="IMPASSE DU FURAN">IMPASSE DU FURAN (9)</option><option value="ALLEE DU CLOS DU VERGER">ALLEE DU CLOS DU VERGER (8)</option><option value="CHEMIN DE LA BARIOLE">CHEMIN DE LA BARIOLE (6)</option><option value="PLACE JEAN SIMAND">PLACE JEAN SIMAND (5)</option><option value="CHEMIN DES SABLES">CHEMIN DES SABLES (5)</option><option value="ALLEE DES GRANDS PEUPLIERS">ALLEE DES GRANDS PEUPLIERS (5)</option><option value="RUE PIERRE LOUIS GILLET">RUE PIERRE LOUIS GILLET (5)</option><option value="ALLEE LA FENIERE">ALLEE LA FENIERE (5)</option><option value="AVENUE DU PARC">AVENUE DU PARC (4)</option><option value="RUE CLAUDE LIMOUSIN">RUE CLAUDE LIMOUSIN (4)</option><option value="RUE JEAN AUTELIN">RUE JEAN AUTELIN (4)</option><option value="RUE DE COLLONGES">RUE DE COLLONGES (4)</option><option value="IMPASSE JEAN SIMAND">IMPASSE JEAN SIMAND (3)</option><option value="RUE JULES RIBOULON">RUE JULES RIBOULON (3)</option><option value="IMPASSE DES JARRETIERES">IMPASSE DES JARRETIERES (2)</option><option value="CHEMIN DE L'ABREUVOIR">CHEMIN DE L'ABREUVOIR (1)</option><option value="ALLEE ANDRIACI">ALLEE ANDRIACI (1)</option>
+        </select>
+      </div>
+
+      <!-- Display Options -->
+      <div class="toggles-row">
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-route" checked>
+          <span>Fil d'itinéraire (Tracé)</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="toggle-cases">
+          <span>Afficher les cases</span>
+        </label>
+      </div>
+      <div class="filter-group" style="margin-top: 4px;">
+        <div class="filter-title">
+          <span>Transparence des cases</span>
+          <span id="opacity-val-sidebar" style="font-size:0.7rem; font-weight:700; color:#2563eb;">72%</span>
+        </div>
+        <input type="range" id="opacity-slider-sidebar" min="0" max="100" value="72" style="width:100%; accent-color:#2563eb; cursor:pointer;">
+      </div>
+      <div class="filter-group" style="margin-top: 4px;">
+        <div class="filter-title">
+          <span>Transparence fil d'itinéraire (Tracé)</span>
+          <span id="route-opacity-val-sidebar" style="font-size:0.7rem; font-weight:700; color:#2563eb;">85%</span>
+        </div>
+        <input type="range" id="route-opacity-slider-sidebar" min="0" max="100" value="85" style="width:100%; accent-color:#2563eb; cursor:pointer;">
+      </div>
+      <div class="filter-group" style="margin-top: 4px;">
+        <div class="filter-title">
+          <span>Transparence bloc contrôles carte</span>
+          <span id="legend-opacity-val-sidebar" style="font-size:0.7rem; font-weight:700; color:#2563eb;">100%</span>
+        </div>
+        <input type="range" id="legend-opacity-slider-sidebar" min="0" max="100" value="100" style="width:100%; accent-color:#2563eb; cursor:pointer;">
+      </div>
+    </div>
+
+    <!-- Draggable Horizontal Splitter Bar (Reduce / Extend Controls vs Arrêts list) -->
+    <div id="panel-resizer" class="panel-resizer" title="Glisser vers le haut ou le bas pour réduire / agrandir">
+      <span style="font-size:0.65rem; color:#64748b; font-weight:600;">↕ Glisser</span>
+      <div class="panel-resizer-grip"></div>
+      <button type="button" id="toggle-controls-btn" class="panel-toggle-btn" title="Réduire ou étendre les filtres">▲ Réduire</button>
+    </div>
+
+    <!-- Stops List Header -->
+    <div class="list-header">
+      <span id="list-count-label">Arrêts (453)</span>
+      <span style="font-size: 0.65rem; color: #94a3b8;">Ordre chronologique</span>
+    </div>
+
+    <!-- Stops Virtual List -->
+    <div id="stops-list"></div>
+  </aside>
+
+  <!-- Map Container -->
+  <main id="map-container">
+    <div id="map"></div>
+  </main>
+
+  <!-- Leaflet 1.9.4 JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <script>
+    // Embedded geocoded data
+    const STOPS_DATA = [{"id": 1, "order": 1, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "55", "cell_label": "55 - 57 / 53 / Aquarium", "note": "Aquarium", "is_battery": false, "is_business": true, "lat": 45.516742, "lon": 4.254715, "match_type": "house number found"}, {"id": 2, "order": 2, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "57", "cell_label": "55 - 57 / 53 / Aquarium", "note": "Aquarium", "is_battery": false, "is_business": true, "lat": 45.516746, "lon": 4.255147, "match_type": "house number found"}, {"id": 3, "order": 3, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "53", "cell_label": "55 - 57 / 53 / Aquarium", "note": "Aquarium", "is_battery": false, "is_business": true, "lat": 45.516967, "lon": 4.254418, "match_type": "house number found"}, {"id": 4, "order": 4, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "49", "cell_label": "49 - 47 / 45", "note": "", "is_battery": false, "is_business": false, "lat": 45.517792, "lon": 4.254335, "match_type": "house number found"}, {"id": 5, "order": 5, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "47", "cell_label": "49 - 47 / 45", "note": "", "is_battery": false, "is_business": false, "lat": 45.517968, "lon": 4.254323, "match_type": "house number found"}, {"id": 6, "order": 6, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "45", "cell_label": "49 - 47 / 45", "note": "", "is_battery": false, "is_business": false, "lat": 45.518094, "lon": 4.254344, "match_type": "house number found"}, {"id": 7, "order": 7, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "43", "cell_label": "43 / CESMELI CHAUFFAGISTE", "note": "CESMELI CHAUFFAGISTE", "is_battery": false, "is_business": true, "lat": 45.518405, "lon": 4.2544, "match_type": "house number found"}, {"id": 8, "order": 8, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "43", "cell_label": "43 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.518405, "lon": 4.2544, "match_type": "house number found"}, {"id": 9, "order": 9, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "41B", "cell_label": "41B-41 / 39", "note": "", "is_battery": false, "is_business": false, "lat": 45.518485, "lon": 4.254446, "match_type": "house number found (as 41bis)"}, {"id": 10, "order": 10, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "41", "cell_label": "41B-41 / 39", "note": "", "is_battery": false, "is_business": false, "lat": 45.518612, "lon": 4.254416, "match_type": "house number found"}, {"id": 11, "order": 11, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "39", "cell_label": "41B-41 / 39", "note": "", "is_battery": false, "is_business": false, "lat": 45.518824, "lon": 4.254419, "match_type": "house number found"}, {"id": 12, "order": 12, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "37B", "cell_label": "37B-37 / 35", "note": "", "is_battery": false, "is_business": false, "lat": 45.518955, "lon": 4.254822, "match_type": "house number found (as 37bis)"}, {"id": 13, "order": 13, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "37", "cell_label": "37B-37 / 35", "note": "", "is_battery": false, "is_business": false, "lat": 45.519024, "lon": 4.254428, "match_type": "house number found"}, {"id": 14, "order": 14, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "35", "cell_label": "37B-37 / 35", "note": "", "is_battery": false, "is_business": false, "lat": 45.519208, "lon": 4.254456, "match_type": "house number found"}, {"id": 15, "order": 15, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "33B", "cell_label": "33B-33 / 31B", "note": "", "is_battery": false, "is_business": false, "lat": 45.519489, "lon": 4.254514, "match_type": "house number found (as 33bis)"}, {"id": 16, "order": 16, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "33", "cell_label": "33B-33 / 31B", "note": "", "is_battery": false, "is_business": false, "lat": 45.51959, "lon": 4.254522, "match_type": "house number found"}, {"id": 17, "order": 17, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "31B", "cell_label": "33B-33 / 31B", "note": "", "is_battery": false, "is_business": false, "lat": 45.519791, "lon": 4.254548, "match_type": "house number found (as 31bis)"}, {"id": 18, "order": 18, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "31", "cell_label": "31-29 - 27", "note": "", "is_battery": false, "is_business": false, "lat": 45.519934, "lon": 4.254561, "match_type": "house number found"}, {"id": 19, "order": 19, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "29", "cell_label": "31-29 - 27", "note": "", "is_battery": false, "is_business": false, "lat": 45.520112, "lon": 4.254571, "match_type": "house number found"}, {"id": 20, "order": 20, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "27", "cell_label": "31-29 - 27", "note": "", "is_battery": false, "is_business": false, "lat": 45.520318, "lon": 4.254609, "match_type": "house number found"}, {"id": 21, "order": 21, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "27T", "cell_label": "27T / 25B-25", "note": "", "is_battery": false, "is_business": false, "lat": 45.520463, "lon": 4.254616, "match_type": "house number found (as 27ter)"}, {"id": 22, "order": 22, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "25B", "cell_label": "27T / 25B-25", "note": "", "is_battery": false, "is_business": false, "lat": 45.520655, "lon": 4.254614, "match_type": "house number found (as 25bis)"}, {"id": 23, "order": 23, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "25", "cell_label": "27T / 25B-25", "note": "", "is_battery": false, "is_business": false, "lat": 45.520883, "lon": 4.254632, "match_type": "house number found"}, {"id": 24, "order": 24, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "23", "cell_label": "23 / L'AVENTURE DU TRAIN + CFDT", "note": "L'AVENTURE DU TRAIN + CFDT", "is_battery": false, "is_business": true, "lat": 45.521365, "lon": 4.25504, "match_type": "house number found"}, {"id": 25, "order": 25, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "21", "cell_label": "21 - 19", "note": "", "is_battery": false, "is_business": false, "lat": 45.522138, "lon": 4.254677, "match_type": "house number found"}, {"id": 26, "order": 26, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "19", "cell_label": "21 - 19", "note": "", "is_battery": false, "is_business": false, "lat": 45.522229, "lon": 4.254693, "match_type": "house number found"}, {"id": 27, "order": 27, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "17", "cell_label": "17 - 15 / 13", "note": "", "is_battery": false, "is_business": false, "lat": 45.522307, "lon": 4.254719, "match_type": "house number found"}, {"id": 28, "order": 28, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "15", "cell_label": "17 - 15 / 13", "note": "", "is_battery": false, "is_business": false, "lat": 45.522365, "lon": 4.254738, "match_type": "house number found"}, {"id": 29, "order": 29, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "13", "cell_label": "17 - 15 / 13", "note": "", "is_battery": false, "is_business": false, "lat": 45.522631, "lon": 4.254879, "match_type": "house number found"}, {"id": 30, "order": 30, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "13B", "cell_label": "13B-11 / SARIKAYA CHEBAAN", "note": "SARIKAYA CHEBAAN", "is_battery": false, "is_business": true, "lat": 45.522543, "lon": 4.254811, "match_type": "house number found (as 13bis)"}, {"id": 31, "order": 31, "sheet": 1, "section": "B1", "street": "AVENUE JEAN MARTOURET", "number": "11", "cell_label": "13B-11 / SARIKAYA CHEBAAN", "note": "SARIKAYA CHEBAAN", "is_battery": false, "is_business": true, "lat": 45.522799, "lon": 4.254938, "match_type": "house number found"}, {"id": 32, "order": 32, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "1", "cell_label": "1-3-2", "note": "", "is_battery": false, "is_business": false, "lat": 45.522881, "lon": 4.255158, "match_type": "house number found"}, {"id": 33, "order": 33, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "3", "cell_label": "1-3-2", "note": "", "is_battery": false, "is_business": false, "lat": 45.52285, "lon": 4.255212, "match_type": "house number found"}, {"id": 34, "order": 34, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "2", "cell_label": "1-3-2", "note": "", "is_battery": false, "is_business": false, "lat": 45.522644, "lon": 4.255398, "match_type": "house number found"}, {"id": 35, "order": 35, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "5", "cell_label": "5 - 5B-4", "note": "", "is_battery": false, "is_business": false, "lat": 45.522688, "lon": 4.255595, "match_type": "house number found"}, {"id": 36, "order": 36, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "5B", "cell_label": "5 - 5B-4", "note": "", "is_battery": false, "is_business": false, "lat": 45.522556, "lon": 4.255861, "match_type": "house number found (as 5bis)"}, {"id": 37, "order": 37, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "4", "cell_label": "5 - 5B-4", "note": "", "is_battery": false, "is_business": false, "lat": 45.522461, "lon": 4.255854, "match_type": "house number found"}, {"id": 38, "order": 38, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "6", "cell_label": "6-7-9", "note": "", "is_battery": false, "is_business": false, "lat": 45.522349, "lon": 4.256144, "match_type": "house number found"}, {"id": 39, "order": 39, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "7", "cell_label": "6-7-9", "note": "", "is_battery": false, "is_business": false, "lat": 45.522398, "lon": 4.256266, "match_type": "house number found"}, {"id": 40, "order": 40, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "9", "cell_label": "6-7-9", "note": "", "is_battery": false, "is_business": false, "lat": 45.522356, "lon": 4.256362, "match_type": "house number found"}, {"id": 41, "order": 41, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "8", "cell_label": "8 - 11", "note": "", "is_battery": false, "is_business": false, "lat": 45.522237, "lon": 4.256439, "match_type": "house number found"}, {"id": 42, "order": 42, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "11", "cell_label": "8 - 11", "note": "", "is_battery": false, "is_business": false, "lat": 45.522275, "lon": 4.256599, "match_type": "house number found"}, {"id": 43, "order": 43, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "8B", "cell_label": "8B - 13", "note": "", "is_battery": false, "is_business": false, "lat": 45.522143, "lon": 4.256741, "match_type": "house number found (as 8bis)"}, {"id": 44, "order": 44, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "13", "cell_label": "8B - 13", "note": "", "is_battery": false, "is_business": false, "lat": 45.522274, "lon": 4.256904, "match_type": "house number found"}, {"id": 45, "order": 45, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "13bis", "cell_label": "13Bis-15 / ALLION / AVININ / AVRIL GUIRAO", "note": "ALLION · AVININ · AVRIL GUIRAO", "is_battery": false, "is_business": true, "lat": 45.522427, "lon": 4.257001, "match_type": "house number found"}, {"id": 46, "order": 46, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "15", "cell_label": "13Bis-15 / ALLION / AVININ / AVRIL GUIRAO", "note": "ALLION · AVININ · AVRIL GUIRAO", "is_battery": false, "is_business": true, "lat": 45.522329, "lon": 4.257043, "match_type": "house number found"}, {"id": 47, "order": 47, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "8ter", "cell_label": "8TER-15b / 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.522059, "lon": 4.256982, "match_type": "house number found"}, {"id": 48, "order": 48, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "15B", "cell_label": "8TER-15b / 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.522082, "lon": 4.257198, "match_type": "house number found (as 15bis)"}, {"id": 49, "order": 49, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "10", "cell_label": "8TER-15b / 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.521997, "lon": 4.257173, "match_type": "house number found"}, {"id": 50, "order": 50, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "17", "cell_label": "17 - 12 / DUGUET G / MALLER", "note": "DUGUET G · MALLER", "is_battery": false, "is_business": true, "lat": 45.522024, "lon": 4.257387, "match_type": "house number found"}, {"id": 51, "order": 51, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "12", "cell_label": "17 - 12 / DUGUET G / MALLER", "note": "DUGUET G · MALLER", "is_battery": false, "is_business": true, "lat": 45.521909, "lon": 4.257429, "match_type": "house number found"}, {"id": 52, "order": 52, "sheet": 1, "section": "B2", "street": "IMPASSE DES JARRETIERES", "number": "2", "cell_label": "2 - 4 / BOUCHETAL / DUGUET MICHELE", "note": "BOUCHETAL · DUGUET MICHELE", "is_battery": false, "is_business": true, "lat": 45.522164, "lon": 4.257854, "match_type": "house number found"}, {"id": 53, "order": 53, "sheet": 1, "section": "B2", "street": "IMPASSE DES JARRETIERES", "number": "4", "cell_label": "2 - 4 / BOUCHETAL / DUGUET MICHELE", "note": "BOUCHETAL · DUGUET MICHELE", "is_battery": false, "is_business": true, "lat": 45.522017, "lon": 4.257754, "match_type": "house number found"}, {"id": 54, "order": 54, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "19", "cell_label": "19 - 23 / 14", "note": "", "is_battery": false, "is_business": false, "lat": 45.521879, "lon": 4.257749, "match_type": "house number found"}, {"id": 55, "order": 55, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "23", "cell_label": "19 - 23 / 14", "note": "", "is_battery": false, "is_business": false, "lat": 45.521777, "lon": 4.257973, "match_type": "house number found"}, {"id": 56, "order": 56, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "14", "cell_label": "19 - 23 / 14", "note": "", "is_battery": false, "is_business": false, "lat": 45.521713, "lon": 4.257834, "match_type": "house number found"}, {"id": 57, "order": 57, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "25", "cell_label": "25-27 / 27B", "note": "", "is_battery": false, "is_business": false, "lat": 45.521588, "lon": 4.258123, "match_type": "house number found"}, {"id": 58, "order": 58, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "27", "cell_label": "25-27 / 27B", "note": "", "is_battery": false, "is_business": false, "lat": 45.521491, "lon": 4.258296, "match_type": "house number found"}, {"id": 59, "order": 59, "sheet": 1, "section": "B2", "street": "RUE DES JARRETIERES", "number": "27B", "cell_label": "25-27 / 27B", "note": "", "is_battery": false, "is_business": false, "lat": 45.521761, "lon": 4.258438, "match_type": "house number found (as 27bis)"}, {"id": 60, "order": 60, "sheet": 1, "section": "B2", "street": "AVENUE JEAN MARTOURET", "number": "7", "cell_label": "7 - 5", "note": "", "is_battery": false, "is_business": false, "lat": 45.523774, "lon": 4.255532, "match_type": "house number found"}, {"id": 61, "order": 61, "sheet": 1, "section": "B2", "street": "AVENUE JEAN MARTOURET", "number": "5", "cell_label": "7 - 5", "note": "", "is_battery": false, "is_business": false, "lat": 45.523956, "lon": 4.255665, "match_type": "house number found"}, {"id": 62, "order": 62, "sheet": 1, "section": "B2", "street": "AVENUE JEAN MARTOURET", "number": "3", "cell_label": "3 - 1", "note": "", "is_battery": false, "is_business": false, "lat": 45.524283, "lon": 4.255981, "match_type": "house number found"}, {"id": 63, "order": 63, "sheet": 1, "section": "B2", "street": "AVENUE JEAN MARTOURET", "number": "1", "cell_label": "3 - 1", "note": "", "is_battery": false, "is_business": false, "lat": 45.524365, "lon": 4.25613, "match_type": "house number found"}, {"id": 64, "order": 64, "sheet": 1, "section": "B3", "street": "PLACE DU FOREZ", "number": "8", "cell_label": "8 / Batteries", "note": "Batteries", "is_battery": true, "is_business": false, "lat": 45.524406, "lon": 4.256433, "match_type": "house number found"}, {"id": 65, "order": 65, "sheet": 1, "section": "B3", "street": "PLACE DU FOREZ", "number": "10B", "cell_label": "10 B / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.524361, "lon": 4.256672, "match_type": "house number found (as 10bis)"}, {"id": 66, "order": 66, "sheet": 1, "section": "B3", "street": "PLACE DU FOREZ", "number": "10", "cell_label": "10 / PHARMACIE", "note": "PHARMACIE", "is_battery": false, "is_business": true, "lat": 45.524401, "lon": 4.256514, "match_type": "house number found"}, {"id": 67, "order": 67, "sheet": 1, "section": "B3", "street": "PLACE DU FOREZ", "number": "12", "cell_label": "12 CURY 14", "note": "CURY", "is_battery": false, "is_business": true, "lat": 45.524364, "lon": 4.256776, "match_type": "house number found"}, {"id": 68, "order": 68, "sheet": 1, "section": "B3", "street": "PLACE DU FOREZ", "number": "14", "cell_label": "12 CURY 14", "note": "CURY", "is_battery": false, "is_business": true, "lat": 45.524357, "lon": 4.256851, "match_type": "house number found"}, {"id": 69, "order": 69, "sheet": 1, "section": "B3", "street": "PLACE DU FOREZ", "number": "14bis", "cell_label": "14 BIS / DEFOUR 16 CAISSE D EPARGNE", "note": "DEFOUR CAISSE D EPARGNE", "is_battery": false, "is_business": true, "lat": 45.524564, "lon": 4.256792, "match_type": "number not found: middle of the street"}, {"id": 70, "order": 70, "sheet": 1, "section": "B3", "street": "PLACE DU FOREZ", "number": "16", "cell_label": "14 BIS / DEFOUR 16 CAISSE D EPARGNE", "note": "DEFOUR CAISSE D EPARGNE", "is_battery": false, "is_business": true, "lat": 45.524336, "lon": 4.257128, "match_type": "house number found"}, {"id": 71, "order": 71, "sheet": 1, "section": "B3", "street": "PLACE DU FOREZ", "number": "16", "cell_label": "16 / Batterie", "note": "Batterie", "is_battery": true, "is_business": false, "lat": 45.524336, "lon": 4.257128, "match_type": "house number found"}, {"id": 72, "order": 72, "sheet": 1, "section": "B3", "street": "RUE DE LA FABRIQUE", "number": "2", "cell_label": "2 / BANQUE / BNP", "note": "BANQUE · BNP", "is_battery": false, "is_business": true, "lat": 45.524179, "lon": 4.257237, "match_type": "house number found"}, {"id": 73, "order": 73, "sheet": 1, "section": "B3", "street": "RUE DE LA FABRIQUE", "number": "2", "cell_label": "2 / LE VOLTAIRE BATTERIE", "note": "LE VOLTAIRE BATTERIE", "is_battery": true, "is_business": false, "lat": 45.524179, "lon": 4.257237, "match_type": "house number found"}, {"id": 74, "order": 74, "sheet": 1, "section": "B3", "street": "RUE DE LA FABRIQUE", "number": "6", "cell_label": "6 / 10 COLOMB", "note": "COLOMB", "is_battery": false, "is_business": true, "lat": 45.523842, "lon": 4.256995, "match_type": "house number found"}, {"id": 75, "order": 75, "sheet": 1, "section": "B3", "street": "RUE DE LA FABRIQUE", "number": "10", "cell_label": "6 / 10 COLOMB", "note": "COLOMB", "is_battery": false, "is_business": true, "lat": 45.523513, "lon": 4.257662, "match_type": "house number found"}, {"id": 76, "order": 76, "sheet": 1, "section": "B3", "street": "RUE DE LA FABRIQUE", "number": "12", "cell_label": "12 ORIOL FRASTA 14 DIGONNET EXPERT MICHALET", "note": "ORIOL FRASTA DIGONNET EXPERT MICHALET", "is_battery": false, "is_business": true, "lat": 45.523397, "lon": 4.257844, "match_type": "house number found"}, {"id": 77, "order": 77, "sheet": 1, "section": "B3", "street": "RUE DE LA FABRIQUE", "number": "14", "cell_label": "12 ORIOL FRASTA 14 DIGONNET EXPERT MICHALET", "note": "ORIOL FRASTA DIGONNET EXPERT MICHALET", "is_battery": false, "is_business": true, "lat": 45.523238, "lon": 4.258039, "match_type": "house number found"}, {"id": 78, "order": 78, "sheet": 1, "section": "B3", "street": "RUE DE LA FABRIQUE", "number": "16", "cell_label": "16/18 RODRIGUEZ SAUVAIN DERUDET GARDE", "note": "RODRIGUEZ SAUVAIN DERUDET GARDE", "is_battery": false, "is_business": true, "lat": 45.523212, "lon": 4.258067, "match_type": "house number found"}, {"id": 79, "order": 79, "sheet": 1, "section": "B3", "street": "RUE DE LA FABRIQUE", "number": "18", "cell_label": "16/18 RODRIGUEZ SAUVAIN DERUDET GARDE", "note": "RODRIGUEZ SAUVAIN DERUDET GARDE", "is_battery": false, "is_business": true, "lat": 45.522927, "lon": 4.258421, "match_type": "house number found"}, {"id": 80, "order": 80, "sheet": 1, "section": "B3", "street": "RUE DE LA FABRIQUE", "number": "20", "cell_label": "20 ROME FILLOT MOULIN COURTIAL", "note": "ROME FILLOT MOULIN COURTIAL", "is_battery": false, "is_business": true, "lat": 45.522872, "lon": 4.258506, "match_type": "house number found"}, {"id": 81, "order": 81, "sheet": 1, "section": "B4", "street": "RUE DE LA FABRIQUE", "number": "23", "cell_label": "23 LA FABRIQUE / 25 / ARNAUD", "note": "LA FABRIQUE · ARNAUD", "is_battery": false, "is_business": true, "lat": 45.522719, "lon": 4.25892, "match_type": "house number found"}, {"id": 82, "order": 82, "sheet": 1, "section": "B4", "street": "RUE DE LA FABRIQUE", "number": "25", "cell_label": "23 LA FABRIQUE / 25 / ARNAUD", "note": "LA FABRIQUE · ARNAUD", "is_battery": false, "is_business": true, "lat": 45.522603, "lon": 4.25913, "match_type": "house number found"}, {"id": 83, "order": 83, "sheet": 1, "section": "B4", "street": "RUE DE LA FABRIQUE", "number": "19", "cell_label": "19 BRUEL HERAULT 17 MAHAMDI", "note": "BRUEL HERAULT MAHAMDI", "is_battery": false, "is_business": true, "lat": 45.523377, "lon": 4.258019, "match_type": "house number found"}, {"id": 84, "order": 84, "sheet": 1, "section": "B4", "street": "RUE DE LA FABRIQUE", "number": "17", "cell_label": "19 BRUEL HERAULT 17 MAHAMDI", "note": "BRUEL HERAULT MAHAMDI", "is_battery": false, "is_business": true, "lat": 45.523432, "lon": 4.257942, "match_type": "house number found"}, {"id": 85, "order": 85, "sheet": 1, "section": "B4", "street": "RUE DE LA FABRIQUE", "number": "15", "cell_label": "15 PONS ALLIROL 13 TESSIER SERAILLE", "note": "PONS ALLIROL TESSIER SERAILLE", "is_battery": false, "is_business": true, "lat": 45.523518, "lon": 4.257832, "match_type": "house number found"}, {"id": 86, "order": 86, "sheet": 1, "section": "B4", "street": "RUE DE LA FABRIQUE", "number": "13", "cell_label": "15 PONS ALLIROL 13 TESSIER SERAILLE", "note": "PONS ALLIROL TESSIER SERAILLE", "is_battery": false, "is_business": true, "lat": 45.523568, "lon": 4.257794, "match_type": "house number found"}, {"id": 87, "order": 87, "sheet": 1, "section": "B4", "street": "RUE DE LA FABRIQUE", "number": "11", "cell_label": "11 KANE / 9 / VEILLET LAVALLEE", "note": "KANE · VEILLET LAVALLEE", "is_battery": false, "is_business": true, "lat": 45.523638, "lon": 4.257669, "match_type": "house number found"}, {"id": 88, "order": 88, "sheet": 1, "section": "B4", "street": "RUE DE LA FABRIQUE", "number": "9", "cell_label": "11 KANE / 9 / VEILLET LAVALLEE", "note": "KANE · VEILLET LAVALLEE", "is_battery": false, "is_business": true, "lat": 45.523775, "lon": 4.257489, "match_type": "house number found"}, {"id": 89, "order": 89, "sheet": 1, "section": "B4", "street": "RUE DE LA FABRIQUE", "number": "7", "cell_label": "7 BERNIER", "note": "BERNIER", "is_battery": false, "is_business": true, "lat": 45.523954, "lon": 4.257397, "match_type": "house number found"}, {"id": 90, "order": 90, "sheet": 1, "section": "B4", "street": "AVENUE DU PARC", "number": "1", "cell_label": "1 / L'HERMITAGE / BATTERIE", "note": "L'HERMITAGE · BATTERIE", "is_battery": true, "is_business": false, "lat": 45.524629, "lon": 4.257664, "match_type": "house number found"}, {"id": 91, "order": 91, "sheet": 1, "section": "B4", "street": "AVENUE DU PARC", "number": "4", "cell_label": "4 / IMMEUBLE LE PRIVILEGE", "note": "IMMEUBLE LE PRIVILEGE", "is_battery": false, "is_business": true, "lat": 45.524644, "lon": 4.25746, "match_type": "house number found"}, {"id": 92, "order": 92, "sheet": 1, "section": "B4", "street": "AVENUE DU PARC", "number": "8", "cell_label": "8 - 12 / AUDIOSOLUTION / PAROISSE", "note": "AUDIOSOLUTION · PAROISSE", "is_battery": false, "is_business": true, "lat": 45.52489, "lon": 4.257644, "match_type": "house number found"}, {"id": 93, "order": 93, "sheet": 1, "section": "B4", "street": "AVENUE DU PARC", "number": "12", "cell_label": "8 - 12 / AUDIOSOLUTION / PAROISSE", "note": "AUDIOSOLUTION · PAROISSE", "is_battery": false, "is_business": true, "lat": 45.525096, "lon": 4.257581, "match_type": "house number found"}, {"id": 94, "order": 94, "sheet": 1, "section": "B4", "street": "PLACE DU FOREZ", "number": "17", "cell_label": "17 / VIVAL", "note": "VIVAL", "is_battery": false, "is_business": true, "lat": 45.524531, "lon": 4.257338, "match_type": "house number found"}, {"id": 95, "order": 95, "sheet": 1, "section": "B4", "street": "PLACE DU FOREZ", "number": "15", "cell_label": "15 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.524577, "lon": 4.257231, "match_type": "house number found"}, {"id": 96, "order": 96, "sheet": 1, "section": "B4", "street": "PLACE DU FOREZ", "number": "11", "cell_label": "11 REGIE TARDY", "note": "REGIE TARDY", "is_battery": false, "is_business": true, "lat": 45.524654, "lon": 4.257014, "match_type": "house number found"}, {"id": 97, "order": 97, "sheet": 1, "section": "B5", "street": "PLACE DU FOREZ", "number": "9", "cell_label": "9 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.524673, "lon": 4.256959, "match_type": "house number found"}, {"id": 98, "order": 98, "sheet": 1, "section": "B5", "street": "PLACE DU FOREZ", "number": "7", "cell_label": "7 - 3 / FLEURISTE ALLONS VOIR SI LA ROSE", "note": "FLEURISTE ALLONS VOIR SI LA ROSE", "is_battery": false, "is_business": true, "lat": 45.524696, "lon": 4.25689, "match_type": "house number found"}, {"id": 99, "order": 99, "sheet": 1, "section": "B5", "street": "PLACE DU FOREZ", "number": "3", "cell_label": "7 - 3 / FLEURISTE ALLONS VOIR SI LA ROSE", "note": "FLEURISTE ALLONS VOIR SI LA ROSE", "is_battery": false, "is_business": true, "lat": 45.524757, "lon": 4.256752, "match_type": "house number found"}, {"id": 100, "order": 100, "sheet": 1, "section": "B5", "street": "PLACE DU FOREZ", "number": "1", "cell_label": "1 -1 Fromager / INFIRMIER", "note": "Fromager · INFIRMIER", "is_battery": false, "is_business": true, "lat": 45.524805, "lon": 4.256673, "match_type": "house number found"}, {"id": 101, "order": 101, "sheet": 1, "section": "B5", "street": "PLACE DU FOREZ", "number": "2", "cell_label": "2 / OPTICIEN MIJOLA FESTIVI TABAC", "note": "OPTICIEN MIJOLA FESTIVI TABAC", "is_battery": false, "is_business": true, "lat": 45.524708, "lon": 4.256431, "match_type": "house number found"}, {"id": 102, "order": 102, "sheet": 1, "section": "B5", "street": "PLACE DU FOREZ", "number": "4", "cell_label": "4-4bis -6 BATTERIE + REDURON", "note": "BATTERIE + REDURON", "is_battery": true, "is_business": false, "lat": 45.52464, "lon": 4.256338, "match_type": "house number found"}, {"id": 103, "order": 103, "sheet": 1, "section": "B5", "street": "PLACE DU FOREZ", "number": "4bis", "cell_label": "4-4bis -6 BATTERIE + REDURON", "note": "BATTERIE + REDURON", "is_battery": true, "is_business": false, "lat": 45.524564, "lon": 4.256792, "match_type": "number not found: middle of the street"}, {"id": 104, "order": 104, "sheet": 1, "section": "B5", "street": "PLACE DU FOREZ", "number": "6", "cell_label": "4-4bis -6 BATTERIE + REDURON", "note": "BATTERIE + REDURON", "is_battery": true, "is_business": false, "lat": 45.524579, "lon": 4.256232, "match_type": "house number found"}, {"id": 105, "order": 105, "sheet": 1, "section": "B5", "street": "RUE MARCELLIN GIRINON", "number": "2", "cell_label": "2 / ECOLE JEANNE D ARC", "note": "ECOLE JEANNE D ARC", "is_battery": false, "is_business": true, "lat": 45.524427, "lon": 4.255817, "match_type": "house number found"}, {"id": 106, "order": 106, "sheet": 1, "section": "B5", "street": "RUE MARCELLIN GIRINON", "number": "4", "cell_label": "4 / BOIRAYON / BOULANGERIE / ORTEGA", "note": "BOIRAYON · BOULANGERIE · ORTEGA", "is_battery": false, "is_business": true, "lat": 45.52437, "lon": 4.255479, "match_type": "house number found"}, {"id": 107, "order": 107, "sheet": 1, "section": "B5", "street": "RUE MARCELLIN GIRINON", "number": "6", "cell_label": "6 - 8 / 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.524394, "lon": 4.255258, "match_type": "house number found"}, {"id": 108, "order": 108, "sheet": 1, "section": "B5", "street": "RUE MARCELLIN GIRINON", "number": "8", "cell_label": "6 - 8 / 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.524419, "lon": 4.254985, "match_type": "house number found"}, {"id": 109, "order": 109, "sheet": 1, "section": "B5", "street": "RUE MARCELLIN GIRINON", "number": "10", "cell_label": "6 - 8 / 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.52444, "lon": 4.2548, "match_type": "house number found"}, {"id": 110, "order": 110, "sheet": 1, "section": "B5", "street": "RUE MARCELLIN GIRINON", "number": "12", "cell_label": "12 - 16", "note": "", "is_battery": false, "is_business": false, "lat": 45.524499, "lon": 4.254454, "match_type": "house number found"}, {"id": 111, "order": 111, "sheet": 1, "section": "B5", "street": "RUE MARCELLIN GIRINON", "number": "16", "cell_label": "12 - 16", "note": "", "is_battery": false, "is_business": false, "lat": 45.524599, "lon": 4.253934, "match_type": "house number found"}, {"id": 112, "order": 112, "sheet": 1, "section": "B5", "street": "RUE ALFRED NOBEL", "number": "1", "cell_label": "1 / GARDERE", "note": "GARDERE", "is_battery": false, "is_business": true, "lat": 45.524784, "lon": 4.253682, "match_type": "house number found"}, {"id": 113, "order": 113, "sheet": 1, "section": "B5", "street": "RUE MARCELLIN GIRINON", "number": "22", "cell_label": "22 / DUPLANY", "note": "DUPLANY", "is_battery": false, "is_business": true, "lat": 45.524791, "lon": 4.252834, "match_type": "house number found"}, {"id": 114, "order": 114, "sheet": 1, "section": "B5", "street": "PLACE JEAN SIMAND", "number": "2", "cell_label": "2", "note": "", "is_battery": false, "is_business": false, "lat": 45.524895, "lon": 4.252753, "match_type": "house number found"}, {"id": 115, "order": 115, "sheet": 1, "section": "B5", "street": "PLACE JEAN SIMAND", "number": "4", "cell_label": "4 / ONGLERIE CNAPPI", "note": "ONGLERIE CNAPPI", "is_battery": false, "is_business": true, "lat": 45.525142, "lon": 4.252591, "match_type": "house number found"}, {"id": 116, "order": 116, "sheet": 1, "section": "B6", "street": "RUE HIPPOLYTE SAUZEA", "number": "16", "cell_label": "16 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.525173, "lon": 4.252705, "match_type": "house number found"}, {"id": 117, "order": 117, "sheet": 1, "section": "B6", "street": "RUE HIPPOLYTE SAUZEA", "number": "16", "cell_label": "16 - 14 / 12", "note": "", "is_battery": false, "is_business": false, "lat": 45.525173, "lon": 4.252705, "match_type": "house number found"}, {"id": 118, "order": 118, "sheet": 1, "section": "B6", "street": "RUE HIPPOLYTE SAUZEA", "number": "14", "cell_label": "16 - 14 / 12", "note": "", "is_battery": false, "is_business": false, "lat": 45.525275, "lon": 4.252735, "match_type": "house number found"}, {"id": 119, "order": 119, "sheet": 1, "section": "B6", "street": "RUE HIPPOLYTE SAUZEA", "number": "12", "cell_label": "16 - 14 / 12", "note": "", "is_battery": false, "is_business": false, "lat": 45.52533, "lon": 4.252877, "match_type": "house number found"}, {"id": 120, "order": 120, "sheet": 1, "section": "B6", "street": "RUE HIPPOLYTE SAUZEA", "number": "10", "cell_label": "10 / RESIDENCE PLEIN SUD", "note": "RESIDENCE PLEIN SUD", "is_battery": false, "is_business": true, "lat": 45.525295, "lon": 4.253111, "match_type": "house number found"}, {"id": 121, "order": 121, "sheet": 1, "section": "B6", "street": "RUE HIPPOLYTE SAUZEA", "number": "7", "cell_label": "7 - 5 / 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.525184, "lon": 4.253062, "match_type": "house number found"}, {"id": 122, "order": 122, "sheet": 1, "section": "B6", "street": "RUE HIPPOLYTE SAUZEA", "number": "5", "cell_label": "7 - 5 / 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.525176, "lon": 4.253126, "match_type": "house number found"}, {"id": 123, "order": 123, "sheet": 1, "section": "B6", "street": "RUE HIPPOLYTE SAUZEA", "number": "8", "cell_label": "7 - 5 / 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.525276, "lon": 4.253256, "match_type": "house number found"}, {"id": 124, "order": 124, "sheet": 1, "section": "B6", "street": "RUE HIPPOLYTE SAUZEA", "number": "3bis", "cell_label": "3BIS / RESIDENCE / LE SAUZEAT", "note": "RESIDENCE · LE SAUZEAT", "is_battery": false, "is_business": true, "lat": 45.525168, "lon": 4.253265, "match_type": "house number found"}, {"id": 125, "order": 125, "sheet": 1, "section": "B6", "street": "RUE HIPPOLYTE SAUZEA", "number": "3", "cell_label": "3 / RESIDENCE / LE SAUZEAT", "note": "RESIDENCE · LE SAUZEAT", "is_battery": false, "is_business": true, "lat": 45.525147, "lon": 4.253428, "match_type": "house number found"}, {"id": 126, "order": 126, "sheet": 1, "section": "B6", "street": "RUE HIPPOLYTE SAUZEA", "number": "6", "cell_label": "6 - 4B / 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.52525, "lon": 4.253457, "match_type": "house number found"}, {"id": 127, "order": 127, "sheet": 1, "section": "B6", "street": "RUE HIPPOLYTE SAUZEA", "number": "4B", "cell_label": "6 - 4B / 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.525225, "lon": 4.253142, "match_type": "number not found: middle of the street"}, {"id": 128, "order": 128, "sheet": 1, "section": "B6", "street": "RUE HIPPOLYTE SAUZEA", "number": "4", "cell_label": "6 - 4B / 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.525214, "lon": 4.253679, "match_type": "house number found"}, {"id": 129, "order": 129, "sheet": 1, "section": "B6", "street": "RUE ALFRED NOBEL", "number": "3", "cell_label": "3", "note": "", "is_battery": false, "is_business": false, "lat": 45.525016, "lon": 4.25376, "match_type": "house number found"}, {"id": 130, "order": 130, "sheet": 1, "section": "B6", "street": "RUE ALFRED NOBEL", "number": "2", "cell_label": "2 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.52523, "lon": 4.254002, "match_type": "house number found"}, {"id": 131, "order": 131, "sheet": 1, "section": "B6", "street": "RUE ALFRED NOBEL", "number": "4", "cell_label": "4 - 6 / 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.525579, "lon": 4.254074, "match_type": "house number found"}, {"id": 132, "order": 132, "sheet": 1, "section": "B6", "street": "RUE ALFRED NOBEL", "number": "6", "cell_label": "4 - 6 / 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.525614, "lon": 4.254472, "match_type": "house number found"}, {"id": 133, "order": 133, "sheet": 1, "section": "B6", "street": "RUE ALFRED NOBEL", "number": "8", "cell_label": "4 - 6 / 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.525665, "lon": 4.25445, "match_type": "house number found"}, {"id": 134, "order": 134, "sheet": 1, "section": "B6", "street": "RUE ALFRED NOBEL", "number": "10", "cell_label": "10 - 12 / AMICALE LAIQUE DURY / SIMONET LALLOME GENTY", "note": "AMICALE LAIQUE DURY · SIMONET LALLOME GENTY", "is_battery": false, "is_business": true, "lat": 45.525964, "lon": 4.254199, "match_type": "house number found"}, {"id": 135, "order": 135, "sheet": 1, "section": "B6", "street": "RUE ALFRED NOBEL", "number": "12", "cell_label": "10 - 12 / AMICALE LAIQUE DURY / SIMONET LALLOME GENTY", "note": "AMICALE LAIQUE DURY · SIMONET LALLOME GENTY", "is_battery": false, "is_business": true, "lat": 45.526112, "lon": 4.254234, "match_type": "house number found"}, {"id": 136, "order": 136, "sheet": 2, "section": "B7", "street": "RUE ALFRED NOBEL", "number": "9", "cell_label": "9 / RESIDENCE / LE CALIOPE", "note": "RESIDENCE · LE CALIOPE", "is_battery": false, "is_business": true, "lat": 45.526419, "lon": 4.254224, "match_type": "house number found"}, {"id": 137, "order": 137, "sheet": 2, "section": "B7", "street": "RUE CLAUDE LIMOUSIN", "number": "1", "cell_label": "1 / FOURNY", "note": "FOURNY", "is_battery": false, "is_business": true, "lat": 45.525696, "lon": 4.253884, "match_type": "house number found"}, {"id": 138, "order": 138, "sheet": 2, "section": "B7", "street": "RUE CLAUDE LIMOUSIN", "number": "12", "cell_label": "12 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.525897, "lon": 4.253553, "match_type": "house number found"}, {"id": 139, "order": 139, "sheet": 2, "section": "B7", "street": "RUE CLAUDE LIMOUSIN", "number": "3", "cell_label": "3 / DUPLOT", "note": "DUPLOT", "is_battery": false, "is_business": true, "lat": 45.525824, "lon": 4.253433, "match_type": "house number found"}, {"id": 140, "order": 140, "sheet": 2, "section": "B7", "street": "RUE CLAUDE LIMOUSIN", "number": "5", "cell_label": "5 / RESIDENCE / LES FLORALIES", "note": "RESIDENCE · LES FLORALIES", "is_battery": false, "is_business": true, "lat": 45.525924, "lon": 4.252923, "match_type": "house number found"}, {"id": 141, "order": 141, "sheet": 2, "section": "B7", "street": "RUE D'URFE", "number": "13", "cell_label": "13 / BATTERIE / + COIFFEUR", "note": "BATTERIE · COIFFEUR", "is_battery": true, "is_business": false, "lat": 45.526163, "lon": 4.252411, "match_type": "house number found"}, {"id": 142, "order": 142, "sheet": 2, "section": "B7", "street": "BOULEVARD JEAN JAURES", "number": "2", "cell_label": "2 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.527376, "lon": 4.252577, "match_type": "house number found"}, {"id": 143, "order": 143, "sheet": 2, "section": "B7", "street": "BOULEVARD JEAN JAURES", "number": "4", "cell_label": "2 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.527507, "lon": 4.252529, "match_type": "house number found"}, {"id": 144, "order": 144, "sheet": 2, "section": "B7", "street": "BOULEVARD JEAN JAURES", "number": "4bis", "cell_label": "4 BIS / CENTRE EVANGELIQUE", "note": "CENTRE EVANGELIQUE", "is_battery": false, "is_business": true, "lat": 45.527831, "lon": 4.252452, "match_type": "house number found"}, {"id": 145, "order": 145, "sheet": 2, "section": "B7", "street": "BOULEVARD JEAN JAURES", "number": "8", "cell_label": "8 - 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.528524, "lon": 4.252255, "match_type": "house number found"}, {"id": 146, "order": 146, "sheet": 2, "section": "B7", "street": "BOULEVARD JEAN JAURES", "number": "6", "cell_label": "8 - 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.528413, "lon": 4.252284, "match_type": "house number found"}, {"id": 147, "order": 147, "sheet": 2, "section": "B7", "street": "BOULEVARD JEAN JAURES", "number": "10", "cell_label": "10 / CARROSSERIE PINNA", "note": "CARROSSERIE PINNA", "is_battery": false, "is_business": true, "lat": 45.528776, "lon": 4.252208, "match_type": "house number found"}, {"id": 148, "order": 148, "sheet": 2, "section": "B7", "street": "BOULEVARD JEAN JAURES", "number": "12", "cell_label": "12 - 14", "note": "", "is_battery": false, "is_business": false, "lat": 45.528916, "lon": 4.252152, "match_type": "house number found"}, {"id": 149, "order": 149, "sheet": 2, "section": "B7", "street": "BOULEVARD JEAN JAURES", "number": "14", "cell_label": "12 - 14", "note": "", "is_battery": false, "is_business": false, "lat": 45.528956, "lon": 4.252122, "match_type": "house number found"}, {"id": 150, "order": 150, "sheet": 2, "section": "C1", "street": "BOULEVARD JEAN JAURES", "number": "16", "cell_label": "16-16B", "note": "", "is_battery": false, "is_business": false, "lat": 45.529049, "lon": 4.252094, "match_type": "house number found"}, {"id": 151, "order": 151, "sheet": 2, "section": "C1", "street": "BOULEVARD JEAN JAURES", "number": "16B", "cell_label": "16-16B", "note": "", "is_battery": false, "is_business": false, "lat": 45.529185, "lon": 4.252055, "match_type": "house number found (as 16bis)"}, {"id": 152, "order": 152, "sheet": 2, "section": "C1", "street": "BOULEVARD JEAN JAURES", "number": "18", "cell_label": "18 - 20 / TABAC", "note": "TABAC", "is_battery": false, "is_business": true, "lat": 45.529275, "lon": 4.252022, "match_type": "house number found"}, {"id": 153, "order": 153, "sheet": 2, "section": "C1", "street": "BOULEVARD JEAN JAURES", "number": "20", "cell_label": "18 - 20 / TABAC", "note": "TABAC", "is_battery": false, "is_business": true, "lat": 45.52831, "lon": 4.252233, "match_type": "number not found: middle of the street"}, {"id": 154, "order": 154, "sheet": 2, "section": "C1", "street": "BOULEVARD JEAN JAURES", "number": "17", "cell_label": "17 - 15", "note": "", "is_battery": false, "is_business": false, "lat": 45.52831, "lon": 4.252233, "match_type": "number not found: middle of the street"}, {"id": 155, "order": 155, "sheet": 2, "section": "C1", "street": "BOULEVARD JEAN JAURES", "number": "15", "cell_label": "17 - 15", "note": "", "is_battery": false, "is_business": false, "lat": 45.529518, "lon": 4.251817, "match_type": "house number found"}, {"id": 156, "order": 156, "sheet": 2, "section": "C1", "street": "CHEMIN DE L'ABREUVOIR", "number": "2", "cell_label": "2 / BOUNOUAR AFFELA", "note": "BOUNOUAR AFFELA", "is_battery": false, "is_business": true, "lat": 45.529265, "lon": 4.251392, "match_type": "house number found"}, {"id": 157, "order": 157, "sheet": 2, "section": "C1", "street": "BOULEVARD JEAN JAURES", "number": "13", "cell_label": "13 - 9", "note": "", "is_battery": false, "is_business": false, "lat": 45.52897, "lon": 4.251841, "match_type": "house number found"}, {"id": 158, "order": 158, "sheet": 2, "section": "C1", "street": "BOULEVARD JEAN JAURES", "number": "9", "cell_label": "13 - 9", "note": "", "is_battery": false, "is_business": false, "lat": 45.527969, "lon": 4.25224, "match_type": "house number found"}, {"id": 159, "order": 159, "sheet": 2, "section": "C1", "street": "BOULEVARD JEAN JAURES", "number": "7", "cell_label": "7 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.52787, "lon": 4.252271, "match_type": "house number found"}, {"id": 160, "order": 160, "sheet": 2, "section": "C1", "street": "BOULEVARD JEAN JAURES", "number": "5", "cell_label": "5 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.52769, "lon": 4.252315, "match_type": "house number found"}, {"id": 161, "order": 161, "sheet": 2, "section": "C1", "street": "BOULEVARD JEAN JAURES", "number": "3B", "cell_label": "3B - 3", "note": "", "is_battery": false, "is_business": false, "lat": 45.527409, "lon": 4.252389, "match_type": "house number found (as 3bis)"}, {"id": 162, "order": 162, "sheet": 2, "section": "C1", "street": "BOULEVARD JEAN JAURES", "number": "3", "cell_label": "3B - 3", "note": "", "is_battery": false, "is_business": false, "lat": 45.527312, "lon": 4.252419, "match_type": "house number found"}, {"id": 163, "order": 163, "sheet": 2, "section": "C1", "street": "BOULEVARD JEAN JAURES", "number": "1", "cell_label": "1 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.527216, "lon": 4.252434, "match_type": "house number found"}, {"id": 164, "order": 164, "sheet": 2, "section": "C1", "street": "CHEMIN DES SABLES", "number": "2", "cell_label": "2 - 3 / 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.527163, "lon": 4.252068, "match_type": "house number found"}, {"id": 165, "order": 165, "sheet": 2, "section": "C1", "street": "CHEMIN DES SABLES", "number": "3", "cell_label": "2 - 3 / 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.527339, "lon": 4.251759, "match_type": "number not found: middle of the street"}, {"id": 166, "order": 166, "sheet": 2, "section": "C1", "street": "CHEMIN DES SABLES", "number": "4", "cell_label": "2 - 3 / 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.527196, "lon": 4.251892, "match_type": "house number found"}, {"id": 167, "order": 167, "sheet": 2, "section": "C1", "street": "CHEMIN DES SABLES", "number": "7", "cell_label": "7 - 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.527339, "lon": 4.251759, "match_type": "number not found: middle of the street"}, {"id": 168, "order": 168, "sheet": 2, "section": "C1", "street": "CHEMIN DES SABLES", "number": "8", "cell_label": "7 - 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.52743, "lon": 4.251413, "match_type": "house number found"}, {"id": 169, "order": 169, "sheet": 2, "section": "C1", "street": "RUE EMILE REYMOND", "number": "28", "cell_label": "28 / FORUM", "note": "FORUM", "is_battery": false, "is_business": true, "lat": 45.527389, "lon": 4.253647, "match_type": "house number found"}, {"id": 170, "order": 170, "sheet": 2, "section": "C1", "street": "RUE EMILE REYMOND", "number": "26bis", "cell_label": "26 BIS / CRECHE", "note": "CRECHE", "is_battery": false, "is_business": true, "lat": 45.526558, "lon": 4.254546, "match_type": "number not found: middle of the street"}, {"id": 171, "order": 171, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "26", "cell_label": "26 - 24 / 22 - 20", "note": "", "is_battery": false, "is_business": false, "lat": 45.526879, "lon": 4.253444, "match_type": "house number found"}, {"id": 172, "order": 172, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "24", "cell_label": "26 - 24 / 22 - 20", "note": "", "is_battery": false, "is_business": false, "lat": 45.526845, "lon": 4.253637, "match_type": "house number found"}, {"id": 173, "order": 173, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "22", "cell_label": "26 - 24 / 22 - 20", "note": "", "is_battery": false, "is_business": false, "lat": 45.526765, "lon": 4.25398, "match_type": "house number found"}, {"id": 174, "order": 174, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "20", "cell_label": "26 - 24 / 22 - 20", "note": "", "is_battery": false, "is_business": false, "lat": 45.526707, "lon": 4.254179, "match_type": "house number found"}, {"id": 175, "order": 175, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "15", "cell_label": "15 / CASA", "note": "CASA", "is_battery": false, "is_business": true, "lat": 45.526538, "lon": 4.253936, "match_type": "house number found"}, {"id": 176, "order": 176, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "18", "cell_label": "18 / GEOMETRE MIALON", "note": "GEOMETRE MIALON", "is_battery": false, "is_business": true, "lat": 45.526632, "lon": 4.254436, "match_type": "house number found"}, {"id": 177, "order": 177, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "11", "cell_label": "11 - 16 / DENTISTE GALLEGO", "note": "DENTISTE GALLEGO", "is_battery": false, "is_business": true, "lat": 45.526499, "lon": 4.254583, "match_type": "house number found"}, {"id": 178, "order": 178, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "16", "cell_label": "11 - 16 / DENTISTE GALLEGO", "note": "DENTISTE GALLEGO", "is_battery": false, "is_business": true, "lat": 45.526596, "lon": 4.254505, "match_type": "house number found"}, {"id": 179, "order": 179, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "9", "cell_label": "9 - 7 / 14", "note": "", "is_battery": false, "is_business": false, "lat": 45.526475, "lon": 4.254653, "match_type": "house number found"}, {"id": 180, "order": 180, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "7", "cell_label": "9 - 7 / 14", "note": "", "is_battery": false, "is_business": false, "lat": 45.526448, "lon": 4.254727, "match_type": "house number found"}, {"id": 181, "order": 181, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "14", "cell_label": "9 - 7 / 14", "note": "", "is_battery": false, "is_business": false, "lat": 45.526539, "lon": 4.254704, "match_type": "house number found"}, {"id": 182, "order": 182, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "12", "cell_label": "12 - 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.526525, "lon": 4.254774, "match_type": "house number found"}, {"id": 183, "order": 183, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "10", "cell_label": "12 - 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.526507, "lon": 4.254856, "match_type": "house number found"}, {"id": 184, "order": 184, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "8", "cell_label": "8 - 6 / 5", "note": "", "is_battery": false, "is_business": false, "lat": 45.526491, "lon": 4.254916, "match_type": "house number found"}, {"id": 185, "order": 185, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "6", "cell_label": "8 - 6 / 5", "note": "", "is_battery": false, "is_business": false, "lat": 45.52645, "lon": 4.255038, "match_type": "house number found"}, {"id": 186, "order": 186, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "5", "cell_label": "8 - 6 / 5", "note": "", "is_battery": false, "is_business": false, "lat": 45.526391, "lon": 4.254962, "match_type": "house number found"}, {"id": 187, "order": 187, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "3", "cell_label": "3 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.526324, "lon": 4.255199, "match_type": "house number found"}, {"id": 188, "order": 188, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "4", "cell_label": "4 / KUCUK", "note": "KUCUK", "is_battery": false, "is_business": true, "lat": 45.526396, "lon": 4.255229, "match_type": "house number found"}, {"id": 189, "order": 189, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "2", "cell_label": "2 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.526345, "lon": 4.255365, "match_type": "house number found"}, {"id": 190, "order": 190, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "1bis", "cell_label": "1 BIS TRINTIGNAC", "note": "TRINTIGNAC", "is_battery": false, "is_business": true, "lat": 45.525778, "lon": 4.255229, "match_type": "house number found"}, {"id": 191, "order": 191, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "1", "cell_label": "1 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.526183, "lon": 4.255452, "match_type": "house number found"}, {"id": 192, "order": 192, "sheet": 2, "section": "C2", "street": "RUE EMILE REYMOND", "number": "2", "cell_label": "2 / AIMV", "note": "AIMV", "is_battery": false, "is_business": true, "lat": 45.526345, "lon": 4.255365, "match_type": "house number found"}, {"id": 193, "order": 193, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "2", "cell_label": "2 / 2B / 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.526616, "lon": 4.254646, "match_type": "house number found"}, {"id": 194, "order": 194, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "2B", "cell_label": "2 / 2B / 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.526666, "lon": 4.254656, "match_type": "house number found (as 2bis)"}, {"id": 195, "order": 195, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "4", "cell_label": "2 / 2B / 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.526758, "lon": 4.254682, "match_type": "house number found"}, {"id": 196, "order": 196, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "8", "cell_label": "8 / 10 / 12", "note": "", "is_battery": false, "is_business": false, "lat": 45.526872, "lon": 4.25472, "match_type": "house number found"}, {"id": 197, "order": 197, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "10", "cell_label": "8 / 10 / 12", "note": "", "is_battery": false, "is_business": false, "lat": 45.52698, "lon": 4.254727, "match_type": "house number found"}, {"id": 198, "order": 198, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "12", "cell_label": "8 / 10 / 12", "note": "", "is_battery": false, "is_business": false, "lat": 45.52706, "lon": 4.25469, "match_type": "house number found"}, {"id": 199, "order": 199, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "18", "cell_label": "18 / 20 / 22", "note": "", "is_battery": false, "is_business": false, "lat": 45.527547, "lon": 4.254675, "match_type": "house number found"}, {"id": 200, "order": 200, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "20", "cell_label": "18 / 20 / 22", "note": "", "is_battery": false, "is_business": false, "lat": 45.527646, "lon": 4.254834, "match_type": "house number found"}, {"id": 201, "order": 201, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "22", "cell_label": "18 / 20 / 22", "note": "", "is_battery": false, "is_business": false, "lat": 45.527612, "lon": 4.254517, "match_type": "house number found"}, {"id": 202, "order": 202, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "24", "cell_label": "24 / PANGAUD", "note": "PANGAUD", "is_battery": false, "is_business": true, "lat": 45.527864, "lon": 4.254543, "match_type": "house number found"}, {"id": 203, "order": 203, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "26", "cell_label": "26 / PEREZ", "note": "PEREZ", "is_battery": false, "is_business": true, "lat": 45.527885, "lon": 4.254759, "match_type": "house number found"}, {"id": 204, "order": 204, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "28", "cell_label": "28 / DENTISTE", "note": "DENTISTE", "is_battery": false, "is_business": true, "lat": 45.52797, "lon": 4.254779, "match_type": "house number found"}, {"id": 205, "order": 205, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "30", "cell_label": "30", "note": "", "is_battery": false, "is_business": false, "lat": 45.528024, "lon": 4.254528, "match_type": "house number found"}, {"id": 206, "order": 206, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "13", "cell_label": "13 - 11", "note": "", "is_battery": false, "is_business": false, "lat": 45.528107, "lon": 4.254377, "match_type": "house number found"}, {"id": 207, "order": 207, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "11", "cell_label": "13 - 11", "note": "", "is_battery": false, "is_business": false, "lat": 45.527858, "lon": 4.25438, "match_type": "house number found"}, {"id": 208, "order": 208, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "7B", "cell_label": "7B - 7", "note": "", "is_battery": false, "is_business": false, "lat": 45.527488, "lon": 4.254415, "match_type": "house number found (as 7bis)"}, {"id": 209, "order": 209, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "7", "cell_label": "7B - 7", "note": "", "is_battery": false, "is_business": false, "lat": 45.527373, "lon": 4.254426, "match_type": "house number found"}, {"id": 210, "order": 210, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "1B", "cell_label": "1B - 1", "note": "", "is_battery": false, "is_business": false, "lat": 45.526808, "lon": 4.254578, "match_type": "house number found (as 1bis)"}, {"id": 211, "order": 211, "sheet": 2, "section": "C3", "street": "RUE DE LA FONTCHALON", "number": "1", "cell_label": "1B - 1", "note": "", "is_battery": false, "is_business": false, "lat": 45.526653, "lon": 4.254574, "match_type": "house number found"}, {"id": 212, "order": 212, "sheet": 2, "section": "C3", "street": "RUE D'URFE", "number": "11", "cell_label": "11 - 9", "note": "", "is_battery": false, "is_business": false, "lat": 45.525838, "lon": 4.252476, "match_type": "house number found"}, {"id": 213, "order": 213, "sheet": 2, "section": "C3", "street": "RUE D'URFE", "number": "9", "cell_label": "11 - 9", "note": "", "is_battery": false, "is_business": false, "lat": 45.525485, "lon": 4.252356, "match_type": "house number found"}, {"id": 214, "order": 214, "sheet": 2, "section": "C3", "street": "RUE D'URFE", "number": "7", "cell_label": "7 - 5", "note": "", "is_battery": false, "is_business": false, "lat": 45.525457, "lon": 4.252357, "match_type": "house number found"}, {"id": 215, "order": 215, "sheet": 2, "section": "C3", "street": "RUE D'URFE", "number": "5", "cell_label": "7 - 5", "note": "", "is_battery": false, "is_business": false, "lat": 45.525547, "lon": 4.252048, "match_type": "house number found"}, {"id": 216, "order": 216, "sheet": 2, "section": "C3", "street": "RUE D'URFE", "number": "3", "cell_label": "3 - 1", "note": "", "is_battery": false, "is_business": false, "lat": 45.525259, "lon": 4.252375, "match_type": "house number found"}, {"id": 217, "order": 217, "sheet": 2, "section": "C3", "street": "RUE D'URFE", "number": "1", "cell_label": "3 - 1", "note": "", "is_battery": false, "is_business": false, "lat": 45.52513, "lon": 4.252369, "match_type": "house number found"}, {"id": 218, "order": 218, "sheet": 2, "section": "C4", "street": "RUE D'URFE", "number": "4", "cell_label": "4 - 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.525489, "lon": 4.252559, "match_type": "house number found"}, {"id": 219, "order": 219, "sheet": 2, "section": "C4", "street": "RUE D'URFE", "number": "6", "cell_label": "4 - 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.525746, "lon": 4.252597, "match_type": "house number found"}, {"id": 220, "order": 220, "sheet": 2, "section": "C4", "street": "RUE D'URFE", "number": "8", "cell_label": "8 - 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.525814, "lon": 4.252614, "match_type": "house number found"}, {"id": 221, "order": 221, "sheet": 2, "section": "C4", "street": "RUE D'URFE", "number": "10", "cell_label": "8 - 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.525915, "lon": 4.252632, "match_type": "house number found"}, {"id": 222, "order": 222, "sheet": 2, "section": "C4", "street": "RUE DE LA LOIRE", "number": "18", "cell_label": "18 - 3", "note": "", "is_battery": false, "is_business": false, "lat": 45.521747, "lon": 4.249946, "match_type": "house number found"}, {"id": 223, "order": 223, "sheet": 2, "section": "C4", "street": "RUE DE LA LOIRE", "number": "3", "cell_label": "18 - 3", "note": "", "is_battery": false, "is_business": false, "lat": 45.522436, "lon": 4.250253, "match_type": "house number found"}, {"id": 224, "order": 224, "sheet": 2, "section": "C4", "street": "IMPASSE JEAN SIMAND", "number": "2", "cell_label": "2 - 4 / 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.525124, "lon": 4.251742, "match_type": "house number found"}, {"id": 225, "order": 225, "sheet": 2, "section": "C4", "street": "IMPASSE JEAN SIMAND", "number": "4", "cell_label": "2 - 4 / 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.525002, "lon": 4.252409, "match_type": "house number found"}, {"id": 226, "order": 226, "sheet": 2, "section": "C4", "street": "IMPASSE JEAN SIMAND", "number": "6", "cell_label": "2 - 4 / 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.525002, "lon": 4.252409, "match_type": "house number found"}, {"id": 227, "order": 227, "sheet": 2, "section": "C4", "street": "PLACE JEAN SIMAND", "number": "5", "cell_label": "5 - 3", "note": "", "is_battery": false, "is_business": false, "lat": 45.524984, "lon": 4.25237, "match_type": "house number found"}, {"id": 228, "order": 228, "sheet": 2, "section": "C4", "street": "PLACE JEAN SIMAND", "number": "3", "cell_label": "5 - 3", "note": "", "is_battery": false, "is_business": false, "lat": 45.524903, "lon": 4.252377, "match_type": "house number found"}, {"id": 229, "order": 229, "sheet": 2, "section": "C4", "street": "RUE DU CONFLUENT", "number": "2", "cell_label": "2 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.524804, "lon": 4.252219, "match_type": "house number found"}, {"id": 230, "order": 230, "sheet": 2, "section": "C4", "street": "RUE DU CONFLUENT", "number": "4", "cell_label": "2 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.524786, "lon": 4.252136, "match_type": "house number found"}, {"id": 231, "order": 231, "sheet": 2, "section": "C4", "street": "RUE DU CONFLUENT", "number": "6", "cell_label": "6 - 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.524762, "lon": 4.252002, "match_type": "house number found"}, {"id": 232, "order": 232, "sheet": 2, "section": "C4", "street": "RUE DU CONFLUENT", "number": "8", "cell_label": "6 - 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.524784, "lon": 4.251741, "match_type": "house number found"}, {"id": 233, "order": 233, "sheet": 2, "section": "C4", "street": "RUE DU CONFLUENT", "number": "10", "cell_label": "10 BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.524798, "lon": 4.251605, "match_type": "house number found"}, {"id": 234, "order": 234, "sheet": 2, "section": "C4", "street": "RUE DU CONFLUENT", "number": "12", "cell_label": "12 / attelier metalurgie JP EQUIPEMENT", "note": "attelier metalurgie JP EQUIPEMENT", "is_battery": false, "is_business": true, "lat": 45.524835, "lon": 4.251133, "match_type": "house number found"}, {"id": 235, "order": 235, "sheet": 2, "section": "C4", "street": "RUE DU CONFLUENT", "number": "14", "cell_label": "14 - 16", "note": "", "is_battery": false, "is_business": false, "lat": 45.524883, "lon": 4.250943, "match_type": "house number found"}, {"id": 236, "order": 236, "sheet": 2, "section": "C4", "street": "RUE DU CONFLUENT", "number": "16", "cell_label": "14 - 16", "note": "", "is_battery": false, "is_business": false, "lat": 45.524853, "lon": 4.251515, "match_type": "number not found: middle of the street"}, {"id": 237, "order": 237, "sheet": 2, "section": "C4", "street": "RUE DU CONFLUENT", "number": "18", "cell_label": "18 - 15", "note": "", "is_battery": false, "is_business": false, "lat": 45.525864, "lon": 4.250765, "match_type": "house number found"}, {"id": 238, "order": 238, "sheet": 2, "section": "C4", "street": "RUE DU CONFLUENT", "number": "15", "cell_label": "18 - 15", "note": "", "is_battery": false, "is_business": false, "lat": 45.525046, "lon": 4.250402, "match_type": "house number found"}, {"id": 239, "order": 239, "sheet": 2, "section": "C4", "street": "RUE DU CONFLUENT", "number": "13", "cell_label": "13 - 11", "note": "", "is_battery": false, "is_business": false, "lat": 45.524755, "lon": 4.251043, "match_type": "house number found"}, {"id": 240, "order": 240, "sheet": 2, "section": "C4", "street": "RUE DU CONFLUENT", "number": "11", "cell_label": "13 - 11", "note": "", "is_battery": false, "is_business": false, "lat": 45.52474, "lon": 4.251198, "match_type": "house number found"}, {"id": 241, "order": 241, "sheet": 2, "section": "C4", "street": "RUE DU CONFLUENT", "number": "9", "cell_label": "9 - 7", "note": "", "is_battery": false, "is_business": false, "lat": 45.524724, "lon": 4.251348, "match_type": "house number found"}, {"id": 242, "order": 242, "sheet": 2, "section": "C4", "street": "RUE DU CONFLUENT", "number": "7", "cell_label": "9 - 7", "note": "", "is_battery": false, "is_business": false, "lat": 45.524717, "lon": 4.25145, "match_type": "house number found"}, {"id": 243, "order": 243, "sheet": 3, "section": "C5", "street": "RUE DU CONFLUENT", "number": "5", "cell_label": "5 - 3", "note": "", "is_battery": false, "is_business": false, "lat": 45.524686, "lon": 4.251736, "match_type": "house number found"}, {"id": 244, "order": 244, "sheet": 3, "section": "C5", "street": "RUE DU CONFLUENT", "number": "3", "cell_label": "5 - 3", "note": "", "is_battery": false, "is_business": false, "lat": 45.524714, "lon": 4.252172, "match_type": "house number found"}, {"id": 245, "order": 245, "sheet": 3, "section": "C5", "street": "RUE DU CONFLUENT", "number": "1", "cell_label": "1 / IDE", "note": "IDE", "is_battery": false, "is_business": true, "lat": 45.524744, "lon": 4.252348, "match_type": "house number found"}, {"id": 246, "order": 246, "sheet": 3, "section": "C5", "street": "IMPASSE DU FURAN", "number": "2", "cell_label": "2 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.524621, "lon": 4.252357, "match_type": "house number found"}, {"id": 247, "order": 247, "sheet": 3, "section": "C5", "street": "IMPASSE DU FURAN", "number": "4", "cell_label": "2 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.524508, "lon": 4.252362, "match_type": "house number found"}, {"id": 248, "order": 248, "sheet": 3, "section": "C5", "street": "IMPASSE DU FURAN", "number": "6", "cell_label": "6", "note": "", "is_battery": false, "is_business": false, "lat": 45.5245, "lon": 4.252357, "match_type": "house number found"}, {"id": 249, "order": 249, "sheet": 3, "section": "C5", "street": "IMPASSE DU FURAN", "number": "7", "cell_label": "7 / ARCHITECTE", "note": "ARCHITECTE", "is_battery": false, "is_business": true, "lat": 45.524153, "lon": 4.252759, "match_type": "house number found"}, {"id": 250, "order": 250, "sheet": 3, "section": "C5", "street": "IMPASSE DU FURAN", "number": "5B", "cell_label": "5B - 5", "note": "", "is_battery": false, "is_business": false, "lat": 45.524397, "lon": 4.252685, "match_type": "house number found (as 5bis)"}, {"id": 251, "order": 251, "sheet": 3, "section": "C5", "street": "IMPASSE DU FURAN", "number": "5", "cell_label": "5B - 5", "note": "", "is_battery": false, "is_business": false, "lat": 45.524434, "lon": 4.252594, "match_type": "house number found"}, {"id": 252, "order": 252, "sheet": 3, "section": "C5", "street": "IMPASSE DU FURAN", "number": "3", "cell_label": "3", "note": "", "is_battery": false, "is_business": false, "lat": 45.524481, "lon": 4.25263, "match_type": "house number found"}, {"id": 253, "order": 253, "sheet": 3, "section": "C5", "street": "IMPASSE DU FURAN", "number": "1B", "cell_label": "1B - 1", "note": "", "is_battery": false, "is_business": false, "lat": 45.524509, "lon": 4.25245, "match_type": "house number found (as 1bis)"}, {"id": 254, "order": 254, "sheet": 3, "section": "C5", "street": "IMPASSE DU FURAN", "number": "1", "cell_label": "1B - 1", "note": "", "is_battery": false, "is_business": false, "lat": 45.524702, "lon": 4.252435, "match_type": "house number found"}, {"id": 255, "order": 255, "sheet": 3, "section": "C5", "street": "PLACE JEAN SIMAND", "number": "1", "cell_label": "1 / Commerce / 1", "note": "Commerce", "is_battery": false, "is_business": true, "lat": 45.524981, "lon": 4.252523, "match_type": "number not found: middle of the street"}, {"id": 256, "order": 256, "sheet": 3, "section": "C5", "street": "RUE MARCELLIN GIRINON", "number": "17", "cell_label": "17 -15", "note": "", "is_battery": false, "is_business": false, "lat": 45.524722, "lon": 4.252708, "match_type": "house number found"}, {"id": 257, "order": 257, "sheet": 3, "section": "C5", "street": "RUE MARCELLIN GIRINON", "number": "15", "cell_label": "17 -15", "note": "", "is_battery": false, "is_business": false, "lat": 45.524661, "lon": 4.252845, "match_type": "house number found"}, {"id": 258, "order": 258, "sheet": 3, "section": "C5", "street": "RUE MARCELLIN GIRINON", "number": "13B", "cell_label": "13B 13", "note": "", "is_battery": false, "is_business": false, "lat": 45.524643, "lon": 4.252919, "match_type": "house number found (as 13bis)"}, {"id": 259, "order": 259, "sheet": 3, "section": "C5", "street": "RUE MARCELLIN GIRINON", "number": "13", "cell_label": "13B 13", "note": "", "is_battery": false, "is_business": false, "lat": 45.524598, "lon": 4.253255, "match_type": "house number found"}, {"id": 260, "order": 260, "sheet": 3, "section": "C5", "street": "RUE MARCELLIN GIRINON", "number": "11B", "cell_label": "11B-11B", "note": "", "is_battery": false, "is_business": false, "lat": 45.524521, "lon": 4.253514, "match_type": "house number found (as 11bis)"}, {"id": 261, "order": 261, "sheet": 3, "section": "C6", "street": "RUE MARCELLIN GIRINON", "number": "11", "cell_label": "11 - 9", "note": "", "is_battery": false, "is_business": false, "lat": 45.52453, "lon": 4.253699, "match_type": "house number found"}, {"id": 262, "order": 262, "sheet": 3, "section": "C6", "street": "RUE MARCELLIN GIRINON", "number": "9", "cell_label": "11 - 9", "note": "", "is_battery": false, "is_business": false, "lat": 45.524472, "lon": 4.254138, "match_type": "house number found"}, {"id": 263, "order": 263, "sheet": 3, "section": "C6", "street": "RUE MARCELLIN GIRINON", "number": "7B", "cell_label": "7B - 7", "note": "", "is_battery": false, "is_business": false, "lat": 45.524415, "lon": 4.254429, "match_type": "house number found (as 7bis)"}, {"id": 264, "order": 264, "sheet": 3, "section": "C6", "street": "RUE MARCELLIN GIRINON", "number": "7", "cell_label": "7B - 7", "note": "", "is_battery": false, "is_business": false, "lat": 45.524371, "lon": 4.254712, "match_type": "house number found"}, {"id": 265, "order": 265, "sheet": 3, "section": "C6", "street": "RUE MARCELLIN GIRINON", "number": "3", "cell_label": "3 - 5 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.524239, "lon": 4.255102, "match_type": "house number found"}, {"id": 266, "order": 266, "sheet": 3, "section": "C6", "street": "RUE MARCELLIN GIRINON", "number": "5", "cell_label": "3 - 5 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.524476, "lon": 4.254257, "match_type": "number not found: middle of the street"}, {"id": 267, "order": 267, "sheet": 3, "section": "C6", "street": "RUE MARCELLIN GIRINON", "number": "1", "cell_label": "1 / IFRA COM", "note": "IFRA COM", "is_battery": false, "is_business": true, "lat": 45.524248, "lon": 4.255672, "match_type": "house number found"}, {"id": 268, "order": 268, "sheet": 3, "section": "C6", "street": "AVENUE JEAN MARTOURET", "number": "2", "cell_label": "2-2BIS / KINÉ", "note": "KINÉ", "is_battery": false, "is_business": true, "lat": 45.524031, "lon": 4.255522, "match_type": "house number found"}, {"id": 269, "order": 269, "sheet": 3, "section": "C6", "street": "AVENUE JEAN MARTOURET", "number": "2bis", "cell_label": "2-2BIS / KINÉ", "note": "KINÉ", "is_battery": false, "is_business": true, "lat": 45.523633, "lon": 4.255229, "match_type": "house number found"}, {"id": 270, "order": 270, "sheet": 3, "section": "C6", "street": "ALLEE DES GRANDS PEUPLIERS", "number": "1", "cell_label": "1 - 3", "note": "", "is_battery": false, "is_business": false, "lat": 45.523834, "lon": 4.254889, "match_type": "house number found"}, {"id": 271, "order": 271, "sheet": 3, "section": "C6", "street": "ALLEE DES GRANDS PEUPLIERS", "number": "3", "cell_label": "1 - 3", "note": "", "is_battery": false, "is_business": false, "lat": 45.523909, "lon": 4.2547, "match_type": "house number found"}, {"id": 272, "order": 272, "sheet": 3, "section": "C6", "street": "ALLEE DES GRANDS PEUPLIERS", "number": "5", "cell_label": "5 - 7", "note": "", "is_battery": false, "is_business": false, "lat": 45.523986, "lon": 4.254396, "match_type": "house number found"}, {"id": 273, "order": 273, "sheet": 3, "section": "C6", "street": "ALLEE DES GRANDS PEUPLIERS", "number": "7", "cell_label": "5 - 7", "note": "", "is_battery": false, "is_business": false, "lat": 45.524004, "lon": 4.254226, "match_type": "house number found"}, {"id": 274, "order": 274, "sheet": 3, "section": "C6", "street": "ALLEE DES GRANDS PEUPLIERS", "number": "9", "cell_label": "9", "note": "", "is_battery": false, "is_business": false, "lat": 45.52407, "lon": 4.253777, "match_type": "house number found"}, {"id": 275, "order": 275, "sheet": 3, "section": "C6", "street": "CHEMIN DE LA BARIOLE", "number": "1", "cell_label": "1", "note": "", "is_battery": false, "is_business": false, "lat": 45.523451, "lon": 4.253104, "match_type": "house number found"}, {"id": 276, "order": 276, "sheet": 3, "section": "C6", "street": "CHEMIN DE LA BARIOLE", "number": "3", "cell_label": "3 5 7 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.52304, "lon": 4.252969, "match_type": "house number found"}, {"id": 277, "order": 277, "sheet": 3, "section": "C6", "street": "CHEMIN DE LA BARIOLE", "number": "5", "cell_label": "3 5 7 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.52302, "lon": 4.252796, "match_type": "house number found"}, {"id": 278, "order": 278, "sheet": 3, "section": "C6", "street": "CHEMIN DE LA BARIOLE", "number": "7", "cell_label": "3 5 7 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.523074, "lon": 4.252708, "match_type": "house number found"}, {"id": 279, "order": 279, "sheet": 3, "section": "C6", "street": "CHEMIN DE LA BARIOLE", "number": "11", "cell_label": "11 - 9", "note": "", "is_battery": false, "is_business": false, "lat": 45.52328, "lon": 4.252669, "match_type": "house number found"}, {"id": 280, "order": 280, "sheet": 3, "section": "C6", "street": "CHEMIN DE LA BARIOLE", "number": "9", "cell_label": "11 - 9", "note": "", "is_battery": false, "is_business": false, "lat": 45.523261, "lon": 4.25273, "match_type": "house number found"}, {"id": 281, "order": 281, "sheet": 3, "section": "C7", "street": "AVENUE JEAN MARTOURET", "number": "4", "cell_label": "4 / Résidence Ovélia / collecte Primo", "note": "Résidence Ovélia · collecte Primo", "is_battery": false, "is_business": true, "lat": 45.522957, "lon": 4.254886, "match_type": "house number found"}, {"id": 282, "order": 282, "sheet": 3, "section": "C7", "street": "AVENUE JEAN MARTOURET", "number": "4", "cell_label": "4 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.522957, "lon": 4.254886, "match_type": "house number found"}, {"id": 283, "order": 283, "sheet": 3, "section": "C7", "street": "AVENUE JEAN MARTOURET", "number": "4bis", "cell_label": "4BIS - 4TER", "note": "", "is_battery": false, "is_business": false, "lat": 45.522672, "lon": 4.25468, "match_type": "house number found"}, {"id": 284, "order": 284, "sheet": 3, "section": "C7", "street": "AVENUE JEAN MARTOURET", "number": "4ter", "cell_label": "4BIS - 4TER", "note": "", "is_battery": false, "is_business": false, "lat": 45.522541, "lon": 4.254674, "match_type": "house number found"}, {"id": 285, "order": 285, "sheet": 3, "section": "C7", "street": "AVENUE JEAN MARTOURET", "number": "6", "cell_label": "6 - 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.522391, "lon": 4.254602, "match_type": "house number found"}, {"id": 286, "order": 286, "sheet": 3, "section": "C7", "street": "AVENUE JEAN MARTOURET", "number": "8", "cell_label": "6 - 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.522148, "lon": 4.254499, "match_type": "house number found"}, {"id": 287, "order": 287, "sheet": 3, "section": "C7", "street": "AVENUE JEAN MARTOURET", "number": "10", "cell_label": "10 / Resto le mas de la gare", "note": "Resto le mas de la gare", "is_battery": false, "is_business": true, "lat": 45.521927, "lon": 4.254499, "match_type": "house number found"}, {"id": 288, "order": 288, "sheet": 3, "section": "C7", "street": "RUE DE LA LOIRE", "number": "2", "cell_label": "2 - 3", "note": "", "is_battery": false, "is_business": false, "lat": 45.521857, "lon": 4.25407, "match_type": "house number found"}, {"id": 289, "order": 289, "sheet": 3, "section": "C7", "street": "RUE DE LA LOIRE", "number": "3", "cell_label": "2 - 3", "note": "", "is_battery": false, "is_business": false, "lat": 45.522436, "lon": 4.250253, "match_type": "house number found"}, {"id": 290, "order": 290, "sheet": 3, "section": "C7", "street": "RUE DE LA LOIRE", "number": "4", "cell_label": "4 - 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.521983, "lon": 4.253254, "match_type": "house number found"}, {"id": 291, "order": 291, "sheet": 3, "section": "C7", "street": "RUE DE LA LOIRE", "number": "6", "cell_label": "4 - 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.522049, "lon": 4.252948, "match_type": "house number found"}, {"id": 292, "order": 292, "sheet": 3, "section": "C7", "street": "RUE DE LA LOIRE", "number": "8", "cell_label": "8-8BIS", "note": "", "is_battery": false, "is_business": false, "lat": 45.522064, "lon": 4.25283, "match_type": "house number found"}, {"id": 293, "order": 293, "sheet": 3, "section": "C7", "street": "RUE DE LA LOIRE", "number": "8bis", "cell_label": "8-8BIS", "note": "", "is_battery": false, "is_business": false, "lat": 45.522135, "lon": 4.251985, "match_type": "house number found"}, {"id": 294, "order": 294, "sheet": 3, "section": "C7", "street": "RUE DE LA LOIRE", "number": "12", "cell_label": "12 - 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.522438, "lon": 4.250684, "match_type": "house number found"}, {"id": 295, "order": 295, "sheet": 3, "section": "C7", "street": "RUE DE LA LOIRE", "number": "10", "cell_label": "12 - 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.522471, "lon": 4.250615, "match_type": "house number found"}, {"id": 296, "order": 296, "sheet": 3, "section": "C7", "street": "RUE DE LA LOIRE", "number": "31", "cell_label": "31", "note": "", "is_battery": false, "is_business": false, "lat": 45.521401, "lon": 4.251094, "match_type": "number not found: middle of the street"}, {"id": 297, "order": 297, "sheet": 3, "section": "C7", "street": "RUE DE LA LOIRE", "number": "18B", "cell_label": "18B - 20", "note": "", "is_battery": false, "is_business": false, "lat": 45.521401, "lon": 4.251094, "match_type": "number not found: middle of the street"}, {"id": 298, "order": 298, "sheet": 3, "section": "C7", "street": "RUE DE LA LOIRE", "number": "20", "cell_label": "18B - 20", "note": "", "is_battery": false, "is_business": false, "lat": 45.520379, "lon": 4.25, "match_type": "house number found"}, {"id": 299, "order": 299, "sheet": 3, "section": "D1", "street": "ALLEE DU CLOS DU VERGER", "number": "2", "cell_label": "2 - 3 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.522821, "lon": 4.250092, "match_type": "house number found"}, {"id": 300, "order": 300, "sheet": 3, "section": "D1", "street": "ALLEE DU CLOS DU VERGER", "number": "3", "cell_label": "2 - 3 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.522952, "lon": 4.250346, "match_type": "number not found: middle of the street"}, {"id": 301, "order": 301, "sheet": 3, "section": "D1", "street": "ALLEE DU CLOS DU VERGER", "number": "4", "cell_label": "4 - 5 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.522814, "lon": 4.250218, "match_type": "house number found"}, {"id": 302, "order": 302, "sheet": 3, "section": "D1", "street": "ALLEE DU CLOS DU VERGER", "number": "5", "cell_label": "4 - 5 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.523022, "lon": 4.250355, "match_type": "house number found"}, {"id": 303, "order": 303, "sheet": 3, "section": "D1", "street": "ALLEE DU CLOS DU VERGER", "number": "6", "cell_label": "6 - 8 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.522809, "lon": 4.250335, "match_type": "house number found"}, {"id": 304, "order": 304, "sheet": 3, "section": "D1", "street": "ALLEE DU CLOS DU VERGER", "number": "8", "cell_label": "6 - 8 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.522921, "lon": 4.250465, "match_type": "house number found"}, {"id": 305, "order": 305, "sheet": 3, "section": "D1", "street": "ALLEE DU CLOS DU VERGER", "number": "10", "cell_label": "10 - 12 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.523048, "lon": 4.250473, "match_type": "house number found"}, {"id": 306, "order": 306, "sheet": 3, "section": "D1", "street": "ALLEE DU CLOS DU VERGER", "number": "12", "cell_label": "10 - 12 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.52322, "lon": 4.250505, "match_type": "house number found"}, {"id": 307, "order": 307, "sheet": 3, "section": "D1", "street": "ALLEE DE L'ORCHIDEE", "number": "2", "cell_label": "2 - 4 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.523415, "lon": 4.250696, "match_type": "house number found"}, {"id": 308, "order": 308, "sheet": 3, "section": "D1", "street": "ALLEE DE L'ORCHIDEE", "number": "4", "cell_label": "2 - 4 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.523415, "lon": 4.250826, "match_type": "house number found"}, {"id": 309, "order": 309, "sheet": 3, "section": "D1", "street": "ALLEE DE L'ORCHIDEE", "number": "6", "cell_label": "6 - 8 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.523433, "lon": 4.250958, "match_type": "house number found"}, {"id": 310, "order": 310, "sheet": 3, "section": "D1", "street": "ALLEE DE L'ORCHIDEE", "number": "8", "cell_label": "6 - 8 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.523439, "lon": 4.251093, "match_type": "house number found"}, {"id": 311, "order": 311, "sheet": 3, "section": "D1", "street": "ALLEE DE L'ORCHIDEE", "number": "10", "cell_label": "10 - 12 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.523439, "lon": 4.251223, "match_type": "house number found"}, {"id": 312, "order": 312, "sheet": 3, "section": "D1", "street": "ALLEE DE L'ORCHIDEE", "number": "12", "cell_label": "10 - 12 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.52345, "lon": 4.251573, "match_type": "house number found"}, {"id": 313, "order": 313, "sheet": 3, "section": "D1", "street": "ALLEE DE L'ORCHIDEE", "number": "14", "cell_label": "14 - 16 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.523428, "lon": 4.252089, "match_type": "house number found"}, {"id": 314, "order": 314, "sheet": 3, "section": "D1", "street": "ALLEE DE L'ORCHIDEE", "number": "16", "cell_label": "14 - 16 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.52358, "lon": 4.252687, "match_type": "house number found"}, {"id": 315, "order": 315, "sheet": 3, "section": "D1", "street": "ALLEE DE L'ORCHIDEE", "number": "18", "cell_label": "18 - 20 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.523549, "lon": 4.252792, "match_type": "house number found"}, {"id": 316, "order": 316, "sheet": 3, "section": "D1", "street": "ALLEE DE L'ORCHIDEE", "number": "20", "cell_label": "18 - 20 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.523518, "lon": 4.252882, "match_type": "house number found"}, {"id": 317, "order": 317, "sheet": 3, "section": "D1", "street": "RUE JULES RIBOULON", "number": "6", "cell_label": "6 - 3 / 1", "note": "", "is_battery": false, "is_business": false, "lat": 45.524595, "lon": 4.250158, "match_type": "house number found"}, {"id": 318, "order": 318, "sheet": 3, "section": "D1", "street": "RUE JULES RIBOULON", "number": "3", "cell_label": "6 - 3 / 1", "note": "", "is_battery": false, "is_business": false, "lat": 45.523755, "lon": 4.249668, "match_type": "house number found"}, {"id": 319, "order": 319, "sheet": 3, "section": "D1", "street": "RUE JULES RIBOULON", "number": "1", "cell_label": "6 - 3 / 1", "note": "", "is_battery": false, "is_business": false, "lat": 45.522619, "lon": 4.249799, "match_type": "house number found"}, {"id": 320, "order": 320, "sheet": 3, "section": "D1", "street": "RUE DE LA LOIRE", "number": "16", "cell_label": "16 - 18 / 24", "note": "", "is_battery": false, "is_business": false, "lat": 45.522548, "lon": 4.249847, "match_type": "house number found"}, {"id": 321, "order": 321, "sheet": 3, "section": "D1", "street": "RUE DE LA LOIRE", "number": "18", "cell_label": "16 - 18 / 24", "note": "", "is_battery": false, "is_business": false, "lat": 45.521747, "lon": 4.249946, "match_type": "house number found"}, {"id": 322, "order": 322, "sheet": 3, "section": "D1", "street": "RUE DE LA LOIRE", "number": "24", "cell_label": "16 - 18 / 24", "note": "", "is_battery": false, "is_business": false, "lat": 45.521401, "lon": 4.251094, "match_type": "number not found: middle of the street"}, {"id": 323, "order": 323, "sheet": 3, "section": "D1", "street": "RUE DE LA LOIRE", "number": "26", "cell_label": "26 - 28", "note": "", "is_battery": false, "is_business": false, "lat": 45.521401, "lon": 4.251094, "match_type": "number not found: middle of the street"}, {"id": 324, "order": 324, "sheet": 3, "section": "D1", "street": "RUE DE LA LOIRE", "number": "28", "cell_label": "26 - 28", "note": "", "is_battery": false, "is_business": false, "lat": 45.519775, "lon": 4.250206, "match_type": "house number found"}, {"id": 325, "order": 325, "sheet": 3, "section": "D1", "street": "RUE DE LA LOIRE", "number": "30", "cell_label": "30 - 32", "note": "", "is_battery": false, "is_business": false, "lat": 45.519337, "lon": 4.250117, "match_type": "house number found"}, {"id": 326, "order": 326, "sheet": 3, "section": "D1", "street": "RUE DE LA LOIRE", "number": "32", "cell_label": "30 - 32", "note": "", "is_battery": false, "is_business": false, "lat": 45.518614, "lon": 4.250318, "match_type": "house number found"}, {"id": 327, "order": 327, "sheet": 3, "section": "D2", "street": "RUE PIERRE LOUIS GILLET", "number": "7", "cell_label": "7 - 5", "note": "", "is_battery": false, "is_business": false, "lat": 45.520757, "lon": 4.251021, "match_type": "house number found"}, {"id": 328, "order": 328, "sheet": 3, "section": "D2", "street": "RUE PIERRE LOUIS GILLET", "number": "5", "cell_label": "7 - 5", "note": "", "is_battery": false, "is_business": false, "lat": 45.520963, "lon": 4.25138, "match_type": "house number found"}, {"id": 329, "order": 329, "sheet": 3, "section": "D2", "street": "RUE PIERRE LOUIS GILLET", "number": "3", "cell_label": "3 - 1 / 2", "note": "", "is_battery": false, "is_business": false, "lat": 45.52104, "lon": 4.251391, "match_type": "house number found"}, {"id": 330, "order": 330, "sheet": 3, "section": "D2", "street": "RUE PIERRE LOUIS GILLET", "number": "1", "cell_label": "3 - 1 / 2", "note": "", "is_battery": false, "is_business": false, "lat": 45.521361, "lon": 4.251996, "match_type": "house number found"}, {"id": 331, "order": 331, "sheet": 3, "section": "D2", "street": "RUE PIERRE LOUIS GILLET", "number": "2", "cell_label": "3 - 1 / 2", "note": "", "is_battery": false, "is_business": false, "lat": 45.521663, "lon": 4.252571, "match_type": "house number found"}, {"id": 332, "order": 332, "sheet": 3, "section": "D2", "street": "AVENUE JEAN MARTOURET", "number": "12", "cell_label": "12", "note": "", "is_battery": false, "is_business": false, "lat": 45.521494, "lon": 4.254422, "match_type": "house number found"}, {"id": 333, "order": 333, "sheet": 3, "section": "D2", "street": "AVENUE JEAN MARTOURET", "number": "14", "cell_label": "14 - 16 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.521371, "lon": 4.254376, "match_type": "house number found"}, {"id": 334, "order": 334, "sheet": 3, "section": "D2", "street": "AVENUE JEAN MARTOURET", "number": "16", "cell_label": "14 - 16 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.521194, "lon": 4.254483, "match_type": "house number found"}, {"id": 335, "order": 335, "sheet": 3, "section": "D2", "street": "AVENUE JEAN MARTOURET", "number": "18", "cell_label": "18", "note": "", "is_battery": false, "is_business": false, "lat": 45.521074, "lon": 4.254485, "match_type": "house number found"}, {"id": 336, "order": 336, "sheet": 3, "section": "D2", "street": "AVENUE JEAN MARTOURET", "number": "20", "cell_label": "20 - 22 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.520978, "lon": 4.254493, "match_type": "house number found"}, {"id": 337, "order": 337, "sheet": 3, "section": "D2", "street": "AVENUE JEAN MARTOURET", "number": "22", "cell_label": "20 - 22 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.520836, "lon": 4.254481, "match_type": "house number found"}, {"id": 338, "order": 338, "sheet": 3, "section": "D2", "street": "AVENUE JEAN MARTOURET", "number": "24", "cell_label": "24", "note": "", "is_battery": false, "is_business": false, "lat": 45.520706, "lon": 4.254487, "match_type": "house number found"}, {"id": 339, "order": 339, "sheet": 3, "section": "D2", "street": "IMPASSE MARQUET", "number": "1", "cell_label": "1 - 2 / 2B", "note": "", "is_battery": false, "is_business": false, "lat": 45.520591, "lon": 4.254083, "match_type": "house number found"}, {"id": 340, "order": 340, "sheet": 3, "section": "D2", "street": "IMPASSE MARQUET", "number": "2", "cell_label": "1 - 2 / 2B", "note": "", "is_battery": false, "is_business": false, "lat": 45.520605, "lon": 4.253934, "match_type": "house number found"}, {"id": 341, "order": 341, "sheet": 3, "section": "D2", "street": "IMPASSE MARQUET", "number": "2B", "cell_label": "1 - 2 / 2B", "note": "", "is_battery": false, "is_business": false, "lat": 45.520696, "lon": 4.253937, "match_type": "house number found (as 2bis)"}, {"id": 342, "order": 342, "sheet": 3, "section": "D2", "street": "IMPASSE MARQUET", "number": "3", "cell_label": "3 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.520596, "lon": 4.253602, "match_type": "house number found"}, {"id": 343, "order": 343, "sheet": 3, "section": "D2", "street": "IMPASSE MARQUET", "number": "4", "cell_label": "3 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.520511, "lon": 4.253488, "match_type": "house number found"}, {"id": 344, "order": 344, "sheet": 3, "section": "D2", "street": "IMPASSE MARQUET", "number": "5", "cell_label": "5 - 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.520658, "lon": 4.253225, "match_type": "house number found"}, {"id": 345, "order": 345, "sheet": 3, "section": "D2", "street": "IMPASSE MARQUET", "number": "6", "cell_label": "5 - 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.520668, "lon": 4.253054, "match_type": "house number found"}, {"id": 346, "order": 346, "sheet": 3, "section": "D2", "street": "IMPASSE MARQUET", "number": "7", "cell_label": "7 - 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.520806, "lon": 4.252688, "match_type": "house number found"}, {"id": 347, "order": 347, "sheet": 3, "section": "D2", "street": "IMPASSE MARQUET", "number": "8", "cell_label": "7 - 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.520699, "lon": 4.252653, "match_type": "house number found"}, {"id": 348, "order": 348, "sheet": 3, "section": "D2", "street": "IMPASSE MARQUET", "number": "9", "cell_label": "9 - 12", "note": "", "is_battery": false, "is_business": false, "lat": 45.520599, "lon": 4.252611, "match_type": "house number found"}, {"id": 349, "order": 349, "sheet": 3, "section": "D2", "street": "IMPASSE MARQUET", "number": "12", "cell_label": "9 - 12", "note": "", "is_battery": false, "is_business": false, "lat": 45.520757, "lon": 4.253178, "match_type": "house number found"}, {"id": 350, "order": 350, "sheet": 4, "section": "D3", "street": "AVENUE JEAN MARTOURET", "number": "26", "cell_label": "26 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.520457, "lon": 4.25444, "match_type": "house number found"}, {"id": 351, "order": 351, "sheet": 4, "section": "D3", "street": "AVENUE JEAN MARTOURET", "number": "28", "cell_label": "28-28B / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.520165, "lon": 4.254422, "match_type": "house number found"}, {"id": 352, "order": 352, "sheet": 4, "section": "D3", "street": "AVENUE JEAN MARTOURET", "number": "28B", "cell_label": "28-28B / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.520093, "lon": 4.254342, "match_type": "house number found (as 28bis)"}, {"id": 353, "order": 353, "sheet": 4, "section": "D3", "street": "ALLEE ANDRIACI", "number": "BATTERIE", "cell_label": "BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.519873, "lon": 4.253668, "match_type": "no number: middle of the street"}, {"id": 354, "order": 354, "sheet": 4, "section": "D3", "street": "AVENUE JEAN MARTOURET", "number": "32", "cell_label": "32 / 3 boites", "note": "3 boites", "is_battery": false, "is_business": true, "lat": 45.519415, "lon": 4.254144, "match_type": "house number found"}, {"id": 355, "order": 355, "sheet": 4, "section": "D3", "street": "AVENUE JEAN MARTOURET", "number": "32", "cell_label": "32 OPTISSIMO COLLECTE PRIMO", "note": "OPTISSIMO COLLECTE PRIMO", "is_battery": false, "is_business": true, "lat": 45.519415, "lon": 4.254144, "match_type": "house number found"}, {"id": 356, "order": 356, "sheet": 4, "section": "D3", "street": "AVENUE JEAN MARTOURET", "number": "32", "cell_label": "32 / BATTERIE / + 1 boite", "note": "BATTERIE · 1 boite", "is_battery": true, "is_business": false, "lat": 45.519415, "lon": 4.254144, "match_type": "house number found"}, {"id": 357, "order": 357, "sheet": 4, "section": "D3", "street": "ALLEE LA FENIERE", "number": "1", "cell_label": "1 - 1B / 2", "note": "", "is_battery": false, "is_business": false, "lat": 45.518828, "lon": 4.254011, "match_type": "house number found"}, {"id": 358, "order": 358, "sheet": 4, "section": "D3", "street": "ALLEE LA FENIERE", "number": "1B", "cell_label": "1 - 1B / 2", "note": "", "is_battery": false, "is_business": false, "lat": 45.518845, "lon": 4.253738, "match_type": "house number found (as 1bis)"}, {"id": 359, "order": 359, "sheet": 4, "section": "D3", "street": "ALLEE LA FENIERE", "number": "2", "cell_label": "1 - 1B / 2", "note": "", "is_battery": false, "is_business": false, "lat": 45.518911, "lon": 4.253664, "match_type": "house number found"}, {"id": 360, "order": 360, "sheet": 4, "section": "D3", "street": "ALLEE LA FENIERE", "number": "3", "cell_label": "3 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.519038, "lon": 4.253865, "match_type": "house number found"}, {"id": 361, "order": 361, "sheet": 4, "section": "D3", "street": "ALLEE LA FENIERE", "number": "4", "cell_label": "3 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.519028, "lon": 4.253916, "match_type": "house number found"}, {"id": 362, "order": 362, "sheet": 4, "section": "D3", "street": "RUE BERNARD PALISSY", "number": "1", "cell_label": "1 - 1 / 3", "note": "", "is_battery": false, "is_business": false, "lat": 45.51855, "lon": 4.253615, "match_type": "house number found"}, {"id": 363, "order": 363, "sheet": 4, "section": "D3", "street": "RUE BERNARD PALISSY", "number": "3", "cell_label": "1 - 1 / 3", "note": "", "is_battery": false, "is_business": false, "lat": 45.518549, "lon": 4.253477, "match_type": "house number found"}, {"id": 364, "order": 364, "sheet": 4, "section": "D3", "street": "RUE BERNARD PALISSY", "number": "5", "cell_label": "5 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.518399, "lon": 4.25324, "match_type": "house number found"}, {"id": 365, "order": 365, "sheet": 4, "section": "D4", "street": "RUE BERNARD PALISSY", "number": "2", "cell_label": "2 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.518836, "lon": 4.252967, "match_type": "house number found"}, {"id": 366, "order": 366, "sheet": 4, "section": "D4", "street": "RUE BERNARD PALISSY", "number": "4", "cell_label": "2 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.519098, "lon": 4.252952, "match_type": "house number found"}, {"id": 367, "order": 367, "sheet": 4, "section": "D4", "street": "RUE BERNARD PALISSY", "number": "6", "cell_label": "6 - 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.519088, "lon": 4.252884, "match_type": "house number found"}, {"id": 368, "order": 368, "sheet": 4, "section": "D4", "street": "RUE BERNARD PALISSY", "number": "8", "cell_label": "6 - 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.518961, "lon": 4.252688, "match_type": "house number found"}, {"id": 369, "order": 369, "sheet": 4, "section": "D4", "street": "RUE BERNARD PALISSY", "number": "7", "cell_label": "7 - 9", "note": "", "is_battery": false, "is_business": false, "lat": 45.518555, "lon": 4.252766, "match_type": "house number found"}, {"id": 370, "order": 370, "sheet": 4, "section": "D4", "street": "RUE BERNARD PALISSY", "number": "9", "cell_label": "7 - 9", "note": "", "is_battery": false, "is_business": false, "lat": 45.518545, "lon": 4.252576, "match_type": "house number found"}, {"id": 371, "order": 371, "sheet": 4, "section": "D4", "street": "RUE JEAN AUTELIN", "number": "3", "cell_label": "3 - 5 / 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.518101, "lon": 4.252322, "match_type": "house number found"}, {"id": 372, "order": 372, "sheet": 4, "section": "D4", "street": "RUE JEAN AUTELIN", "number": "5", "cell_label": "3 - 5 / 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.518057, "lon": 4.252329, "match_type": "house number found"}, {"id": 373, "order": 373, "sheet": 4, "section": "D4", "street": "RUE JEAN AUTELIN", "number": "6", "cell_label": "3 - 5 / 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.51783, "lon": 4.252048, "match_type": "house number found"}, {"id": 374, "order": 374, "sheet": 4, "section": "D4", "street": "RUE JEAN AUTELIN", "number": "4", "cell_label": "4 / INCREVABLE DUBIEN", "note": "INCREVABLE DUBIEN", "is_battery": false, "is_business": true, "lat": 45.518103, "lon": 4.252178, "match_type": "house number found"}, {"id": 375, "order": 375, "sheet": 4, "section": "D4", "street": "RUE BERNARD PALISSY", "number": "11", "cell_label": "11 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.518562, "lon": 4.252163, "match_type": "house number found"}, {"id": 376, "order": 376, "sheet": 4, "section": "D4", "street": "LOTISSEMENT CLOS DES PINS", "number": "1", "cell_label": "1 - 2", "note": "", "is_battery": false, "is_business": false, "lat": 45.51885, "lon": 4.252133, "match_type": "house number found"}, {"id": 377, "order": 377, "sheet": 4, "section": "D4", "street": "LOTISSEMENT CLOS DES PINS", "number": "2", "cell_label": "1 - 2", "note": "", "is_battery": false, "is_business": false, "lat": 45.519047, "lon": 4.252164, "match_type": "house number found"}, {"id": 378, "order": 378, "sheet": 4, "section": "D4", "street": "LOTISSEMENT CLOS DES PINS", "number": "26", "cell_label": "26", "note": "", "is_battery": false, "is_business": false, "lat": 45.519299, "lon": 4.252064, "match_type": "house number found"}, {"id": 379, "order": 379, "sheet": 4, "section": "D4", "street": "LOTISSEMENT CLOS DES PINS", "number": "3", "cell_label": "3 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.519281, "lon": 4.252208, "match_type": "house number found"}, {"id": 380, "order": 380, "sheet": 4, "section": "D4", "street": "LOTISSEMENT CLOS DES PINS", "number": "4", "cell_label": "3 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.519561, "lon": 4.252241, "match_type": "house number found"}, {"id": 381, "order": 381, "sheet": 4, "section": "D4", "street": "LOTISSEMENT CLOS DES PINS", "number": "27", "cell_label": "27", "note": "", "is_battery": false, "is_business": false, "lat": 45.519516, "lon": 4.251937, "match_type": "house number found"}, {"id": 382, "order": 382, "sheet": 4, "section": "D4", "street": "LOTISSEMENT CLOS DES PINS", "number": "5", "cell_label": "5 - 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.519706, "lon": 4.252249, "match_type": "house number found"}, {"id": 383, "order": 383, "sheet": 4, "section": "D4", "street": "LOTISSEMENT CLOS DES PINS", "number": "6", "cell_label": "5 - 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.519929, "lon": 4.252277, "match_type": "house number found"}, {"id": 384, "order": 384, "sheet": 4, "section": "D4", "street": "LOTISSEMENT CLOS DES PINS", "number": "7", "cell_label": "7 - 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.520037, "lon": 4.25231, "match_type": "house number found"}, {"id": 385, "order": 385, "sheet": 4, "section": "D4", "street": "LOTISSEMENT CLOS DES PINS", "number": "8", "cell_label": "7 - 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.520045, "lon": 4.252171, "match_type": "house number found"}, {"id": 386, "order": 386, "sheet": 4, "section": "D4", "street": "LOTISSEMENT CLOS DES PINS", "number": "9", "cell_label": "9 - 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.51996, "lon": 4.251932, "match_type": "house number found"}, {"id": 387, "order": 387, "sheet": 4, "section": "D4", "street": "LOTISSEMENT CLOS DES PINS", "number": "10", "cell_label": "9 - 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.520081, "lon": 4.251673, "match_type": "house number found"}, {"id": 388, "order": 388, "sheet": 4, "section": "D5", "street": "LOTISSEMENT CLOS DES PINS", "number": "11", "cell_label": "11 - 12", "note": "", "is_battery": false, "is_business": false, "lat": 45.519979, "lon": 4.251702, "match_type": "house number found"}, {"id": 389, "order": 389, "sheet": 4, "section": "D5", "street": "LOTISSEMENT CLOS DES PINS", "number": "12", "cell_label": "11 - 12", "note": "", "is_battery": false, "is_business": false, "lat": 45.520098, "lon": 4.251397, "match_type": "house number found"}, {"id": 390, "order": 390, "sheet": 4, "section": "D5", "street": "LOTISSEMENT CLOS DES PINS", "number": "14", "cell_label": "14 - 13", "note": "", "is_battery": false, "is_business": false, "lat": 45.520122, "lon": 4.251081, "match_type": "house number found"}, {"id": 391, "order": 391, "sheet": 4, "section": "D5", "street": "LOTISSEMENT CLOS DES PINS", "number": "13", "cell_label": "14 - 13", "note": "", "is_battery": false, "is_business": false, "lat": 45.519996, "lon": 4.251434, "match_type": "house number found"}, {"id": 392, "order": 392, "sheet": 4, "section": "D5", "street": "LOTISSEMENT CLOS DES PINS", "number": "15", "cell_label": "15 - 16", "note": "", "is_battery": false, "is_business": false, "lat": 45.520022, "lon": 4.251069, "match_type": "house number found"}, {"id": 393, "order": 393, "sheet": 4, "section": "D5", "street": "LOTISSEMENT CLOS DES PINS", "number": "16", "cell_label": "15 - 16", "note": "", "is_battery": false, "is_business": false, "lat": 45.520139, "lon": 4.250888, "match_type": "house number found"}, {"id": 394, "order": 394, "sheet": 4, "section": "D5", "street": "LOTISSEMENT CLOS DES PINS", "number": "17", "cell_label": "17 - 18 / 19", "note": "", "is_battery": false, "is_business": false, "lat": 45.520024, "lon": 4.250796, "match_type": "house number found"}, {"id": 395, "order": 395, "sheet": 4, "section": "D5", "street": "LOTISSEMENT CLOS DES PINS", "number": "18", "cell_label": "17 - 18 / 19", "note": "", "is_battery": false, "is_business": false, "lat": 45.519818, "lon": 4.25074, "match_type": "house number found"}, {"id": 396, "order": 396, "sheet": 4, "section": "D5", "street": "LOTISSEMENT CLOS DES PINS", "number": "19", "cell_label": "17 - 18 / 19", "note": "", "is_battery": false, "is_business": false, "lat": 45.519472, "lon": 4.250725, "match_type": "house number found"}, {"id": 397, "order": 397, "sheet": 4, "section": "D5", "street": "LOTISSEMENT CLOS DES PINS", "number": "20", "cell_label": "20 - 21", "note": "", "is_battery": false, "is_business": false, "lat": 45.519383, "lon": 4.250798, "match_type": "house number found"}, {"id": 398, "order": 398, "sheet": 4, "section": "D5", "street": "LOTISSEMENT CLOS DES PINS", "number": "21", "cell_label": "20 - 21", "note": "", "is_battery": false, "is_business": false, "lat": 45.519509, "lon": 4.250892, "match_type": "house number found"}, {"id": 399, "order": 399, "sheet": 4, "section": "D5", "street": "LOTISSEMENT CLOS DES PINS", "number": "23", "cell_label": "23 - 22", "note": "", "is_battery": false, "is_business": false, "lat": 45.519529, "lon": 4.251453, "match_type": "house number found"}, {"id": 400, "order": 400, "sheet": 4, "section": "D5", "street": "LOTISSEMENT CLOS DES PINS", "number": "22", "cell_label": "23 - 22", "note": "", "is_battery": false, "is_business": false, "lat": 45.519395, "lon": 4.251387, "match_type": "house number found"}, {"id": 401, "order": 401, "sheet": 4, "section": "D5", "street": "LOTISSEMENT CLOS DES PINS", "number": "24", "cell_label": "24 -25", "note": "", "is_battery": false, "is_business": false, "lat": 45.519412, "lon": 4.251646, "match_type": "house number found"}, {"id": 402, "order": 402, "sheet": 4, "section": "D5", "street": "LOTISSEMENT CLOS DES PINS", "number": "25", "cell_label": "24 -25", "note": "", "is_battery": false, "is_business": false, "lat": 45.519511, "lon": 4.251548, "match_type": "house number found"}, {"id": 403, "order": 403, "sheet": 4, "section": "D5", "street": "RUE BERNARD PALISSY", "number": "13", "cell_label": "13 -10 / MONEY DISTRIBUTION PARTEDIS", "note": "MONEY DISTRIBUTION PARTEDIS", "is_battery": false, "is_business": true, "lat": 45.5185, "lon": 4.251999, "match_type": "house number found"}, {"id": 404, "order": 404, "sheet": 4, "section": "D5", "street": "RUE BERNARD PALISSY", "number": "10", "cell_label": "13 -10 / MONEY DISTRIBUTION PARTEDIS", "note": "MONEY DISTRIBUTION PARTEDIS", "is_battery": false, "is_business": true, "lat": 45.5187, "lon": 4.251802, "match_type": "house number found"}, {"id": 405, "order": 405, "sheet": 4, "section": "D5", "street": "RUE BERNARD PALISSY", "number": "17", "cell_label": "17 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.518505, "lon": 4.250954, "match_type": "house number found"}, {"id": 406, "order": 406, "sheet": 4, "section": "D5", "street": "RUE BERNARD PALISSY", "number": "15", "cell_label": "15 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.518574, "lon": 4.251886, "match_type": "house number found"}, {"id": 407, "order": 407, "sheet": 4, "section": "D5", "street": "CHEMIN NEUF", "number": "81", "cell_label": "81 -79", "note": "", "is_battery": false, "is_business": false, "lat": 45.518118, "lon": 4.251601, "match_type": "house number found"}, {"id": 408, "order": 408, "sheet": 4, "section": "D5", "street": "CHEMIN NEUF", "number": "79", "cell_label": "81 -79", "note": "", "is_battery": false, "is_business": false, "lat": 45.518046, "lon": 4.251121, "match_type": "house number found"}, {"id": 409, "order": 409, "sheet": 4, "section": "D5", "street": "CHEMIN NEUF", "number": "75", "cell_label": "75", "note": "", "is_battery": false, "is_business": false, "lat": 45.517783, "lon": 4.251602, "match_type": "house number found"}, {"id": 410, "order": 410, "sheet": 4, "section": "D6", "street": "CHEMIN NEUF", "number": "50", "cell_label": "POLISSAGE RAY / 50 / INVERNIZZI", "note": "POLISSAGE RAY · INVERNIZZI", "is_battery": false, "is_business": true, "lat": 45.517814, "lon": 4.253999, "match_type": "house number found"}, {"id": 411, "order": 411, "sheet": 4, "section": "D6", "street": "CHEMIN NEUF", "number": "34", "cell_label": "34 -36", "note": "", "is_battery": false, "is_business": false, "lat": 45.517736, "lon": 4.254619, "match_type": "house number found"}, {"id": 412, "order": 412, "sheet": 4, "section": "D6", "street": "CHEMIN NEUF", "number": "36", "cell_label": "34 -36", "note": "", "is_battery": false, "is_business": false, "lat": 45.517734, "lon": 4.255133, "match_type": "house number found"}, {"id": 413, "order": 413, "sheet": 4, "section": "D6", "street": "CHEMIN NEUF", "number": "32", "cell_label": "32", "note": "", "is_battery": false, "is_business": false, "lat": 45.518058, "lon": 4.252622, "match_type": "number not found: middle of the street"}, {"id": 414, "order": 414, "sheet": 4, "section": "D6", "street": "CHEMIN NEUF", "number": "30bis", "cell_label": "30 bis / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.518058, "lon": 4.252622, "match_type": "number not found: middle of the street"}, {"id": 415, "order": 415, "sheet": 4, "section": "D6", "street": "CHEMIN NEUF", "number": "30", "cell_label": "30 -28", "note": "", "is_battery": false, "is_business": false, "lat": 45.517817, "lon": 4.255333, "match_type": "house number found"}, {"id": 416, "order": 416, "sheet": 4, "section": "D6", "street": "CHEMIN NEUF", "number": "28", "cell_label": "30 -28", "note": "", "is_battery": false, "is_business": false, "lat": 45.517845, "lon": 4.255613, "match_type": "house number found"}, {"id": 417, "order": 417, "sheet": 4, "section": "D6", "street": "CHEMIN NEUF", "number": "28B", "cell_label": "28B-24B", "note": "", "is_battery": false, "is_business": false, "lat": 45.518376, "lon": 4.255607, "match_type": "house number found"}, {"id": 418, "order": 418, "sheet": 4, "section": "D6", "street": "CHEMIN NEUF", "number": "24B", "cell_label": "28B-24B", "note": "", "is_battery": false, "is_business": false, "lat": 45.518366, "lon": 4.25586, "match_type": "house number found"}, {"id": 419, "order": 419, "sheet": 4, "section": "D6", "street": "CHEMIN NEUF", "number": "24", "cell_label": "24 -22", "note": "", "is_battery": false, "is_business": false, "lat": 45.517822, "lon": 4.255844, "match_type": "house number found"}, {"id": 420, "order": 420, "sheet": 4, "section": "D6", "street": "CHEMIN NEUF", "number": "22", "cell_label": "24 -22", "note": "", "is_battery": false, "is_business": false, "lat": 45.518428, "lon": 4.256155, "match_type": "house number found"}, {"id": 421, "order": 421, "sheet": 4, "section": "D6", "street": "CHEMIN NEUF", "number": "20", "cell_label": "20 - 18", "note": "", "is_battery": false, "is_business": false, "lat": 45.518192, "lon": 4.256146, "match_type": "house number found"}, {"id": 422, "order": 422, "sheet": 4, "section": "D6", "street": "CHEMIN NEUF", "number": "18", "cell_label": "20 - 18", "note": "", "is_battery": false, "is_business": false, "lat": 45.517931, "lon": 4.256162, "match_type": "house number found"}, {"id": 423, "order": 423, "sheet": 4, "section": "D6", "street": "CHEMIN NEUF", "number": "16", "cell_label": "16 - 14", "note": "", "is_battery": false, "is_business": false, "lat": 45.517907, "lon": 4.256417, "match_type": "house number found"}, {"id": 424, "order": 424, "sheet": 4, "section": "D6", "street": "CHEMIN NEUF", "number": "14", "cell_label": "16 - 14", "note": "", "is_battery": false, "is_business": false, "lat": 45.517882, "lon": 4.256712, "match_type": "house number found"}, {"id": 425, "order": 425, "sheet": 4, "section": "D6", "street": "CHEMIN DE COLLONGES", "number": "56", "cell_label": "56 - 52", "note": "", "is_battery": false, "is_business": false, "lat": 45.518086, "lon": 4.257161, "match_type": "house number found"}, {"id": 426, "order": 426, "sheet": 4, "section": "D6", "street": "CHEMIN DE COLLONGES", "number": "52", "cell_label": "56 - 52", "note": "", "is_battery": false, "is_business": false, "lat": 45.518248, "lon": 4.25699, "match_type": "house number found"}, {"id": 427, "order": 427, "sheet": 4, "section": "D6", "street": "CHEMIN DE COLLONGES", "number": "48", "cell_label": "48", "note": "", "is_battery": false, "is_business": false, "lat": 45.518419, "lon": 4.256972, "match_type": "house number found"}, {"id": 428, "order": 428, "sheet": 4, "section": "D6", "street": "ALLEE DES VERNES", "number": "1", "cell_label": "1 - 2", "note": "", "is_battery": false, "is_business": false, "lat": 45.518712, "lon": 4.256891, "match_type": "house number found"}, {"id": 429, "order": 429, "sheet": 4, "section": "D6", "street": "ALLEE DES VERNES", "number": "2", "cell_label": "1 - 2", "note": "", "is_battery": false, "is_business": false, "lat": 45.518754, "lon": 4.256685, "match_type": "house number found"}, {"id": 430, "order": 430, "sheet": 4, "section": "D6", "street": "ALLEE DES VERNES", "number": "3", "cell_label": "3 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.518749, "lon": 4.256468, "match_type": "house number found"}, {"id": 431, "order": 431, "sheet": 4, "section": "D6", "street": "ALLEE DES VERNES", "number": "4", "cell_label": "3 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.518745, "lon": 4.256241, "match_type": "house number found"}, {"id": 432, "order": 432, "sheet": 4, "section": "D7", "street": "ALLEE DES VERNES", "number": "5", "cell_label": "5 - 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.518736, "lon": 4.255946, "match_type": "house number found"}, {"id": 433, "order": 433, "sheet": 4, "section": "D7", "street": "ALLEE DES VERNES", "number": "6", "cell_label": "5 - 6", "note": "", "is_battery": false, "is_business": false, "lat": 45.518733, "lon": 4.255775, "match_type": "house number found"}, {"id": 434, "order": 434, "sheet": 4, "section": "D7", "street": "ALLEE DES VERNES", "number": "7", "cell_label": "7 - 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.518721, "lon": 4.255557, "match_type": "house number found"}, {"id": 435, "order": 435, "sheet": 4, "section": "D7", "street": "ALLEE DES VERNES", "number": "8", "cell_label": "7 - 8", "note": "", "is_battery": false, "is_business": false, "lat": 45.518788, "lon": 4.255353, "match_type": "house number found"}, {"id": 436, "order": 436, "sheet": 4, "section": "D7", "street": "ALLEE DES VERNES", "number": "9", "cell_label": "9 - 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.518853, "lon": 4.255353, "match_type": "house number found"}, {"id": 437, "order": 437, "sheet": 4, "section": "D7", "street": "ALLEE DES VERNES", "number": "10", "cell_label": "9 - 10", "note": "", "is_battery": false, "is_business": false, "lat": 45.518879, "lon": 4.255517, "match_type": "house number found"}, {"id": 438, "order": 438, "sheet": 4, "section": "D7", "street": "ALLEE DES VERNES", "number": "11", "cell_label": "11 - 12", "note": "", "is_battery": false, "is_business": false, "lat": 45.518842, "lon": 4.255829, "match_type": "house number found"}, {"id": 439, "order": 439, "sheet": 4, "section": "D7", "street": "ALLEE DES VERNES", "number": "12", "cell_label": "11 - 12", "note": "", "is_battery": false, "is_business": false, "lat": 45.518836, "lon": 4.256082, "match_type": "house number found"}, {"id": 440, "order": 440, "sheet": 4, "section": "D7", "street": "ALLEE DES VERNES", "number": "13", "cell_label": "13 - 14", "note": "", "is_battery": false, "is_business": false, "lat": 45.51884, "lon": 4.256341, "match_type": "house number found"}, {"id": 441, "order": 441, "sheet": 4, "section": "D7", "street": "ALLEE DES VERNES", "number": "14", "cell_label": "13 - 14", "note": "", "is_battery": false, "is_business": false, "lat": 45.518851, "lon": 4.256645, "match_type": "house number found"}, {"id": 442, "order": 442, "sheet": 4, "section": "D7", "street": "ALLEE DES VERNES", "number": "15", "cell_label": "15 - 15", "note": "", "is_battery": false, "is_business": false, "lat": 45.518853, "lon": 4.256808, "match_type": "house number found"}, {"id": 443, "order": 443, "sheet": 4, "section": "D7", "street": "CHEMIN DE COLLONGES", "number": "8", "cell_label": "8 / RUGBY CLUB RCAB", "note": "RUGBY CLUB RCAB", "is_battery": false, "is_business": true, "lat": 45.519203, "lon": 4.256447, "match_type": "house number found"}, {"id": 444, "order": 444, "sheet": 4, "section": "D7", "street": "CHEMIN DE COLLONGES", "number": "9", "cell_label": "9 - 5", "note": "", "is_battery": false, "is_business": false, "lat": 45.519878, "lon": 4.257222, "match_type": "house number found"}, {"id": 445, "order": 445, "sheet": 4, "section": "D7", "street": "CHEMIN DE COLLONGES", "number": "5", "cell_label": "9 - 5", "note": "", "is_battery": false, "is_business": false, "lat": 45.520101, "lon": 4.25756, "match_type": "house number found"}, {"id": 446, "order": 446, "sheet": 4, "section": "D7", "street": "CHEMIN DE COLLONGES", "number": "6", "cell_label": "6 -6BIS / 1", "note": "", "is_battery": false, "is_business": false, "lat": 45.520357, "lon": 4.256764, "match_type": "house number found"}, {"id": 447, "order": 447, "sheet": 4, "section": "D7", "street": "CHEMIN DE COLLONGES", "number": "6bis", "cell_label": "6 -6BIS / 1", "note": "", "is_battery": false, "is_business": false, "lat": 45.520482, "lon": 4.2567, "match_type": "house number found"}, {"id": 448, "order": 448, "sheet": 4, "section": "D7", "street": "CHEMIN DE COLLONGES", "number": "1", "cell_label": "6 -6BIS / 1", "note": "", "is_battery": false, "is_business": false, "lat": 45.52055, "lon": 4.257187, "match_type": "house number found"}, {"id": 449, "order": 449, "sheet": 4, "section": "D7", "street": "CHEMIN DE COLLONGES", "number": "4", "cell_label": "4 / BATTERIE", "note": "BATTERIE", "is_battery": true, "is_business": false, "lat": 45.520789, "lon": 4.256684, "match_type": "house number found"}, {"id": 450, "order": 450, "sheet": 4, "section": "D7", "street": "RUE DE COLLONGES", "number": "6", "cell_label": "6 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.52095, "lon": 4.256155, "match_type": "house number found"}, {"id": 451, "order": 451, "sheet": 4, "section": "D7", "street": "RUE DE COLLONGES", "number": "4", "cell_label": "6 - 4", "note": "", "is_battery": false, "is_business": false, "lat": 45.520965, "lon": 4.255904, "match_type": "house number found"}, {"id": 452, "order": 452, "sheet": 4, "section": "D7", "street": "RUE DE COLLONGES", "number": "2B", "cell_label": "2B -2", "note": "", "is_battery": false, "is_business": false, "lat": 45.520946, "lon": 4.255678, "match_type": "house number found (as 2bis)"}, {"id": 453, "order": 453, "sheet": 4, "section": "D7", "street": "RUE DE COLLONGES", "number": "2", "cell_label": "2B -2", "note": "", "is_battery": false, "is_business": false, "lat": 45.520993, "lon": 4.255517, "match_type": "house number found"}];
+
+    // Ensure all points have proper id and numeric sequence
+    STOPS_DATA.forEach((s, idx) => {
+      s.id = s.id || s.order || (idx + 1);
+    });
+
+    // 1 color for 2402 and 1 color for 2502 for all stops
+    const ROUND_COLORS = {
+      '2402': '#0284c7', // Sky Blue
+      '2502': '#059669'  // Emerald Green
+    };
+
+    function getStopColor(stop) {
+      if (stop && stop.round && ROUND_COLORS[String(stop.round)]) {
+        return ROUND_COLORS[String(stop.round)];
+      }
+      return '#0284c7';
+    }
+
+    // State
+    let map;
+    let markersLayer = L.layerGroup();
+    let routePolylines = [];
+    let currentRouteOpacity = 0.85;
+    let activeRounds = new Set(['2402', '2502']);
+    let currentSheet = 'all';
+    let currentSection = 'all';
+    let currentType = 'all';
+    let currentStreet = 'all';
+    let searchQuery = '';
+    let markerMap = new Map(); // id -> leaflet marker
+
+    // Dépôts and BAL for 2402 & 2502
+    const DEPOTS_DATA = [
+      {"id": "D1", "round": "2402", "kind": "depot", "lat": 45.522113, "lon": 4.253039, "after_slot": "C7-7", "before_slot": "C7-8", "street_name": "Rue de la Loire"},
+      {"id": "D1", "round": "2502", "kind": "depot", "lat": 45.525162, "lon": 4.256943, "after_slot": "B7-10", "before_slot": "B7-11", "street_name": "Rue Aristide Briand"},
+      {"id": "BAL1", "round": "2502", "kind": "bal", "lat": 45.530486, "lon": 4.256107, "after_slot": "D1-3", "before_slot": "D1-4", "street_name": "Allée des Troënes"},
+      {"id": "D2", "round": "2502", "kind": "depot", "lat": 45.53441, "lon": 4.269725, "after_slot": "D4-13", "before_slot": "D5-1", "street_name": "Rue de la Chaux"}
+    ];
+
+    // Base Layers
+    const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    });
+
+    const osmFrance = L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+      maxZoom: 20,
+      attribution: '&copy; OpenStreetMap France'
+    });
+
+    const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri'
+    });
+
+    // Initialize Map
+    function initMap() {
+      map = L.map('map', {
+        center: [45.5606, 4.2818],
+        zoom: 15,
+        layers: [osmFrance, markersLayer]
+      });
+
+      // Layer Control
+      const baseMaps = {
+        "OSM France (Officiel)": osmFrance,
+        "OSM Standard": osmStandard,
+        "Satellite / Orthophoto": satellite
+      };
+
+      L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+      // Add Live Transparency Slider on Map (without legend items)
+      const legend = L.control({ position: 'bottomleft' });
+      legend.onAdd = function() {
+        const div = L.DomUtil.create('div', '');
+        div.id = 'map-controls-legend-block';
+        div.style.cssText = 'display:flex; flex-direction:column; gap:6px; align-items:flex-start;';
+        L.DomEvent.disableClickPropagation(div);
+        L.DomEvent.disableScrollPropagation(div);
+        div.innerHTML = `
+          <div class="map-legend-box" style="min-width:140px; padding:6px 10px;">
+            <label style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#1e293b; cursor:pointer; user-select:none;">
+              <input type="checkbox" id="toggle-cases-map" style="accent-color:#2563eb; width:14px; height:14px; cursor:pointer;">
+              <span>Afficher les cases</span>
+            </label>
+          </div>
+          <div style="display:flex; gap:10px; align-items:stretch; flex-wrap:wrap;">
+            <div class="map-legend-box" style="min-width:140px;">
+              <div style="display:flex; justify-content:space-between; gap:12px; font-size:10px; font-weight:700; color:#334155; margin-bottom:2px;">
+                <span>Opacité cases</span>
+                <span id="opacity-val-map">72%</span>
+              </div>
+              <input type="range" id="opacity-slider-map" min="0" max="100" value="72" style="width:100%; height:12px; accent-color:#2563eb; cursor:pointer;">
+            </div>
+            <div class="map-legend-box" style="min-width:140px;">
+              <div style="display:flex; justify-content:space-between; gap:12px; font-size:10px; font-weight:700; color:#334155; margin-bottom:2px;">
+                <span>Opacité tracé</span>
+                <span id="route-opacity-val-map">85%</span>
+              </div>
+              <input type="range" id="route-opacity-slider-map" min="0" max="100" value="85" style="width:100%; height:12px; accent-color:#2563eb; cursor:pointer;">
+            </div>
+          </div>
+        `;
+        return div;
+      };
+      legend.addTo(map);
+
+      const syncOpacity = (val) => {
+        document.documentElement.style.setProperty('--marker-opacity', (val / 100).toFixed(2));
+        const s1 = document.getElementById('opacity-slider-sidebar');
+        const s2 = document.getElementById('opacity-slider-map');
+        const v1 = document.getElementById('opacity-val-sidebar');
+        const v2 = document.getElementById('opacity-val-map');
+        if (s1) s1.value = val;
+        if (s2) s2.value = val;
+        if (v1) v1.innerText = val + '%';
+        if (v2) v2.innerText = val + '%';
+      };
+
+      const syncRouteOpacity = (val) => {
+        currentRouteOpacity = Number(val) / 100;
+        routePolylines.forEach(p => p.setStyle({ opacity: currentRouteOpacity }));
+        const rs1 = document.getElementById('route-opacity-slider-sidebar');
+        const rs2 = document.getElementById('route-opacity-slider-map');
+        const rv1 = document.getElementById('route-opacity-val-sidebar');
+        const rv2 = document.getElementById('route-opacity-val-map');
+        if (rs1) rs1.value = val;
+        if (rs2) rs2.value = val;
+        if (rv1) rv1.innerText = val + '%';
+        if (rv2) rv2.innerText = val + '%';
+      };
+
+      setTimeout(() => {
+        const s1 = document.getElementById('opacity-slider-sidebar');
+        const s2 = document.getElementById('opacity-slider-map');
+        if (s1) s1.addEventListener('input', e => syncOpacity(e.target.value));
+        if (s2) s2.addEventListener('input', e => syncOpacity(e.target.value));
+
+        const rs1 = document.getElementById('route-opacity-slider-sidebar');
+        const rs2 = document.getElementById('route-opacity-slider-map');
+        if (rs1) rs1.addEventListener('input', e => syncRouteOpacity(e.target.value));
+        if (rs2) rs2.addEventListener('input', e => syncRouteOpacity(e.target.value));
+
+        const ls1 = document.getElementById('legend-opacity-slider-sidebar');
+      const lv1 = document.getElementById('legend-opacity-val-sidebar');
+      const legendBlock = document.getElementById('map-controls-legend-block');
+      function applyMapControlsOpacity(val) {
+        const op = (Number(val) / 100).toFixed(2);
+        if (lv1) lv1.innerText = val + '%';
+        if (legendBlock) legendBlock.style.opacity = op;
+        const toggleBtn = document.getElementById('toggle-sidebar-btn');
+        if (toggleBtn) toggleBtn.style.opacity = op;
+        const gpsBtn = document.getElementById('gps-recenter-btn');
+        if (gpsBtn) gpsBtn.style.opacity = op;
+        document.querySelectorAll('.leaflet-control-zoom, .leaflet-control-layers, .leaflet-control-gps').forEach(el => {
+          el.style.opacity = op;
+        });
+      }
+      if (ls1) {
+        ls1.addEventListener('input', e => {
+          applyMapControlsOpacity(e.target.value);
+        });
+        applyMapControlsOpacity(ls1.value || 100);
+      }
+        const tcSidebar = document.getElementById('toggle-cases');
+        const tcMap = document.getElementById('toggle-cases-map');
+        if (tcSidebar && tcMap) {
+          tcSidebar.addEventListener('change', e => {
+            tcMap.checked = e.target.checked;
+          });
+          tcMap.addEventListener('change', e => {
+            tcSidebar.checked = e.target.checked;
+            filterAndRender();
+          });
+        }
+      }, 50);
+
+      // Render all stops and list
+      filterAndRender();
+
+      // Fit bounds to points
+      fitAllMarkers();
+    }
+
+    function shortStreetLabel(street) {
+      if (!street) return '';
+      return street
+        .toUpperCase()
+        .replace(/^ANDREZIEUX\s*-\s*CHEMIN NEUF\s*-\s*ST JUST$/, 'CHEMIN NEUF')
+        .replace(/^ANDREZIEUX\s*-\s*ALLEE DES VERNES$/, 'ALL. VERNES')
+        .replace(/^CHEMIN DES BEALLIERES.*$/, 'CH. BEALLIERES')
+        .replace(/^AVENUE JEAN MARTOURET$/, 'J. MARTOURET')
+        .replace(/^AVENUE DE MONTBRISON$/, 'AV. MONTBRISON')
+        .replace(/^AVENUE DU PARC$/, 'AV. DU PARC')
+        .replace(/^BOULEVARD JEAN JAURES$/, 'BD J. JAURES')
+        .replace(/^BD JEAN JAURES$/, 'BD J. JAURES')
+        .replace(/^BOULEVARD PASTEUR$/, 'BD PASTEUR')
+        .replace(/^RUE CHARLES DE GAULLE$/, 'CH. DE GAULLE')
+        .replace(/^RUE ARISTIDE BRIAND$/, 'A. BRIAND')
+        .replace(/^RUE FERNAND BONIS$/, 'F. BONIS')
+        .replace(/^RUE MARCELLIN GIRINON$/, 'M. GIRINON')
+        .replace(/^RUE EMILE REYMOND$/, 'E. REYMOND')
+        .replace(/^RUE BERNARD PALISSY$/, 'B. PALISSY')
+        .replace(/^RUE PIERRE LOUIS GILLET$/, 'P.L. GILLET')
+        .replace(/^RUE HIPPOLYTE SAUZEA$/, 'H. SAUZEA')
+        .replace(/^RUE DE LA MONTEE DES ROCHES$/, 'MTEE ROCHES')
+        .replace(/^ALLEE DES GRANDES ROCHES$/, 'GDES ROCHES')
+        .replace(/^ALLEE DES GRANDS PEUPLIERS$/, 'GDS PEUPLIERS')
+        .replace(/^LOTISSEMENT CLOS DES PINS$/, 'CLOS DES PINS')
+        .replace(/^ALLEE DU CLOS DU VERGER$/, 'CLOS VERGER')
+        .replace(/^ALLEE DU CLOS MIDROIT$/, 'CLOS MIDROIT')
+        .replace(/^ALLEE DU CLOS ROSSIGNOL$/, 'CLOS ROSSIGNOL')
+        .replace(/^ALLEE ALBERT SCHWEITZER$/, 'A. SCHWEITZER')
+        .replace(/^ALLEE ALEXANDRE DUMAS$/, 'A. DUMAS')
+        .replace(/^RUE ROGER LORISSON$/, 'R. LORISSON')
+        .replace(/^RUE CLAUDE LIMOUSIN$/, 'C. LIMOUSIN')
+        .replace(/^RUE JULES RIBOULON$/, 'J. RIBOULON')
+        .replace(/^RUE ALFRED NOBEL$/, 'A. NOBEL')
+        .replace(/^RUE JEAN AUTELIN$/, 'J. AUTELIN')
+        .replace(/^RUE DU 19 MARS 1962$/, '19 MARS 1962')
+        .replace(/^RUE DU 8 MAI 1945$/, '8 MAI 1945')
+        .replace(/^CHEMIN DES DANSES \(CLOS\.DES CERISIERS\)$/, 'CH. DANSES')
+        .replace(/^ROUTE DE SAINT MARCELLIN$/, 'RTE ST MARCELLIN')
+        .replace(/^ROUTE DE ST MARCELLIN$/, 'RTE ST MARCELLIN')
+        .replace(/^IMPASSE DU CLOS DES PERES$/, 'CLOS DES PERES')
+        .replace(/^ALLEE DES JARDINS DE JADE$/, 'JARD. DE JADE')
+        .replace(/^ALLEE DES JARDINS D'ELOISE$/, 'JARD. ELOISE')
+        .replace(/^RUE DES JARDIN D'AGATHE$/, 'JARD. AGATHE')
+        .replace(/^IMP\.? JARDIN D'APOLINE$/, 'IMP. APOLINE')
+        .replace(/^IMP\.? JARDIN D'EGLANTINE$/, 'IMP. EGLANTINE')
+        .replace(/^PLACE DE LA REPUBLIQUE$/, 'PL. REPUBLIQUE')
+        .replace(/^RUE EMMANUEL CHABRIER$/, 'E. CHABRIER')
+        .replace(/^RUE FREDERIC CHOPIN$/, 'F. CHOPIN')
+        .replace(/^RUE GEORGES BIZET$/, 'G. BIZET')
+        .replace(/^RUE HECTOR BERLIOZ$/, 'H. BERLIOZ')
+        .replace(/^RUE MAURICE RAVEL$/, 'M. RAVEL')
+        .replace(/^RUE BAPTISTE COUDOUR$/, 'B. COUDOUR')
+        .replace(/^RUE DE LA MARAICHERE$/, 'MARAICHERE')
+        .replace(/^ALLEE DES TOURTERELLES$/, 'TOURTERELLES')
+        .replace(/^ALLEE DES RAINETTES$/, 'RAINETTES')
+        .replace(/^ALLEE DES COLOMBES$/, 'COLOMBES')
+        .replace(/^ALLEE DE LA BRYONNE$/, 'BRYONNE')
+        .replace(/^CHEMIN DE GOUTTE LYONNE$/, 'CH. GOUTTE LYONNE')
+        .replace(/^CH\. DE GOUTTE LYONNE$/, 'CH. GOUTTE LYONNE')
+        .replace(/^LOT\. GOUTTE LYONNE$/, 'LOT. GOUTTE LYONNE')
+        .replace(/^IMP\. DE GOUTTE LYONNE$/, 'IMP. GOUTTE LYONNE')
+        .replace(/^CHEMIN DE CHANTOISEAU$/, 'CHANTOISEAU')
+        .replace(/^CHEMIN DES /, 'CH. ')
+        .replace(/^CHEMIN DU /, 'CH. ')
+        .replace(/^CHEMIN /, 'CH. ')
+        .replace(/^CH\. DES /, 'CH. ')
+        .replace(/^CH\. DU /, 'CH. ')
+        .replace(/^IMPASSE DES /, 'IMP. ')
+        .replace(/^IMPASSE DU /, 'IMP. ')
+        .replace(/^IMP\. DES /, 'IMP. ')
+        .replace(/^IMP\. DU /, 'IMP. ')
+        .replace(/^ROUTE DE /, 'RTE ')
+        .replace(/^RTE DE /, 'RTE ')
+        .replace(/^RUE DU /, 'R. ')
+        .replace(/^RUE DE LA /, 'R. ')
+        .replace(/^RUE DES /, 'R. ')
+        .replace(/^RUE /, 'R. ')
+        .replace(/^ALLEE DES /, 'ALL. ')
+        .replace(/^ALLEE DE LA /, 'ALL. ');
+    }
+
+    // NUMBER-ONLY MARKER ON MAP (1 color per round for all stops)
+    function createMarkerHtml(stop) {
+      const numOrLabel = stop.number || stop.cell_label || stop.note || '—';
+      const roundColor = getStopColor(stop);
+
+      // Compact translucent number pill
+      return `<div class="postal-dot-marker" style="background: ${roundColor};" title="${stop.number || ''} ${stop.street}">
+        ${numOrLabel}
+      </div>`;
+    }
+
+    function createPopupHtml(stop) {
+      const numOrLabel = stop.number || stop.cell_label || '—';
+      const streetName = stop.street || '';
+      const roundColor = getStopColor(stop);
+      const svUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${stop.lat},${stop.lon}`;
+      const gmapsDir = `https://www.google.com/maps/dir/?api=1&destination=${stop.lat},${stop.lon}`;
+
+      let badgeTag = '';
+      if (stop.is_battery) {
+        badgeTag = `<span class="popup-tag-badge battery">📮 BATTERIE</span>`;
+      }
+
+      return `
+        <div class="popup-box">
+          <div class="popup-header-bar">
+            <div class="popup-header-case">
+              ${stop.round ? `<span>Tournée ${stop.round}</span><span>•</span>` : ''}
+              <span>Case ${stop.section || ''}</span>
+            </div>
+            <div class="popup-seq">#${stop.id} / ${STOPS_DATA.length}</div>
+          </div>
+          
+          <!-- STRICT RULE: NUMBERS DIRECTLY ABOVE STREET NAME BANNER -->
+          <div class="popup-number-block">
+            <div class="popup-main-num">${numOrLabel}</div>
+            ${badgeTag}
+          </div>
+
+          <div class="popup-street-banner" style="background: ${roundColor};">
+            ${streetName}
+          </div>
+
+          <div class="popup-details">
+            <div class="popup-detail-row">
+              <span>Intitulé casier :</span>
+              <span class="popup-detail-val">${stop.cell_label || '—'}</span>
+            </div>
+            <div class="popup-detail-row">
+              <span>Précision géocodage :</span>
+              <span class="popup-detail-val">${stop.match_type || 'BAN'}</span>
+            </div>
+            <div class="popup-detail-row">
+              <span>Coordonnées GPS :</span>
+              <span class="popup-detail-val">${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)}</span>
+            </div>
+          </div>
+
+          <div class="popup-actions">
+            <a href="${svUrl}" target="_blank" rel="noopener noreferrer" class="popup-btn popup-btn-sv">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
+              Street View
+            </a>
+            <a href="${gmapsDir}" target="_blank" rel="noopener noreferrer" class="popup-btn popup-btn-map">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+              Itinéraire
+            </a>
+          </div>
+        </div>
+      `;
+    }
+
+    function filterAndRender() {
+      const query = searchQuery.trim().toLowerCase();
+      const showCasesEl = document.getElementById('toggle-cases');
+      const showCases = showCasesEl ? showCasesEl.checked : true;
+      markersLayer.clearLayers();
+      markerMap.clear();
+
+      const routePointsByRound = { '2402': [], '2502': [], 'default': [] };
+      const visibleStops = [];
+      const roundStops = STOPS_DATA.filter(s => !s.round || activeRounds.has(String(s.round)));
+
+      // Update top stats for active round(s)
+      const roundBats = roundStops.filter(s => s.is_battery).length;
+      document.getElementById('stat-total').innerText = roundStops.length;
+      const sb = document.getElementById('stat-batteries');
+      const cb = document.getElementById('chip-bat-count');
+      if (sb) sb.innerText = roundBats;
+      if (cb) cb.innerText = roundBats;
+
+      STOPS_DATA.forEach(stop => {
+        if (!stop.lat || !stop.lon) return;
+
+        // Filter: Round (2402 / 2502)
+        if (stop.round && !activeRounds.has(String(stop.round))) return;
+
+        // Filter: Section
+        if (currentSection !== 'all' && String(stop.section) !== String(currentSection)) return;
+
+        // Filter: Type
+        if (currentType === 'battery' && !stop.is_battery) return;
+
+        // Filter: Street
+        if (currentStreet !== 'all' && stop.street !== currentStreet) return;
+
+        // Filter: Search Query
+        if (query) {
+          const numStr = String(stop.number || '').toLowerCase();
+          const labelStr = String(stop.cell_label || '').toLowerCase();
+          const streetStr = String(stop.street || '').toLowerCase();
+          const noteStr = String(stop.note || '').toLowerCase();
+          const sectionStr = String(stop.section || '').toLowerCase();
+
+          if (!numStr.includes(query) && 
+              !labelStr.includes(query) && 
+              !streetStr.includes(query) && 
+              !noteStr.includes(query) && 
+              !sectionStr.includes(query)) {
+            return;
+          }
+        }
+
+        visibleStops.push(stop);
+        const rKey = stop.round && routePointsByRound[stop.round] ? stop.round : 'default';
+        routePointsByRound[rKey].push([stop.lat, stop.lon]);
+
+        // Create Leaflet Marker (number-only pill on map)
+        const iconHtml = createMarkerHtml(stop);
+        const icon = L.divIcon({
+          className: 'custom-postal-icon',
+          html: iconHtml,
+          iconSize: [20, 16],
+          iconAnchor: [10, 8]
+        });
+
+        const marker = L.marker([stop.lat, stop.lon], { icon: icon, zIndexOffset: stop.is_battery ? 500 : 0 });
+        marker.bindPopup(createPopupHtml(stop), { maxWidth: 320, className: 'postal-popup' });
+        
+        // Strict Tooltip: Number directly above street
+        const numOrLabel = stop.number || stop.cell_label || stop.note || '—';
+        const roundColor = getStopColor(stop);
+        marker.bindTooltip(`
+          <div style="font-family:'Inter',sans-serif; text-align:center; min-width:80px; padding:2px;">
+            <div style="font-weight:800; font-size:12px; font-family:'JetBrains Mono',monospace; color:#0f172a;">${numOrLabel}</div>
+            <div style="font-size:9px; font-weight:700; text-transform:uppercase; color:#ffffff; background:${roundColor}; padding:1px 4px; border-radius:2px; margin-top:2px;">${stop.street}</div>
+          </div>
+        `, { direction: 'top', offset: [0, -10], opacity: 0.95 });
+
+        marker.on('click', () => {
+          highlightListItem(stop.id);
+        });
+
+        if (showCases) {
+          markersLayer.addLayer(marker);
+          markerMap.set(stop.id, marker);
+        }
+      });
+
+      // Render Dépôts & BAL markers for active round(s)
+      DEPOTS_DATA.forEach(dep => {
+        if (!activeRounds.has(String(dep.round))) return;
+        const isDepot = dep.kind === 'depot';
+        const depIcon = L.divIcon({
+          className: 'custom-postal-icon',
+          html: `<div class="${isDepot ? 'depot-dot-marker' : 'bal-dot-marker'}" title="${isDepot ? 'DÉPÔT' : 'BAL'} (Tournée ${dep.round})">${isDepot ? 'D' : 'BAL'}</div>`,
+          iconSize: isDepot ? [22, 22] : [28, 18],
+          iconAnchor: isDepot ? [11, 11] : [14, 9]
+        });
+        const depMarker = L.marker([dep.lat, dep.lon], { icon: depIcon, zIndexOffset: 900 });
+        depMarker.bindTooltip(`<strong>${isDepot ? 'DÉPÔT' : 'BAL'} · Tournée ${dep.round}</strong><br>Entre ${dep.after_slot} et ${dep.before_slot} (${dep.street_name})`, { direction: 'top', offset: [0, -10] });
+        if (showCases) markersLayer.addLayer(depMarker);
+      });
+
+      // Update Itinerary Lines (one per round)
+      routePolylines.forEach(p => map.removeLayer(p));
+      routePolylines = [];
+
+      if (document.getElementById('toggle-route').checked) {
+        const roundLineColors = { '2402': '#0284c7', '2502': '#059669', 'default': '#2563eb' };
+        Object.entries(routePointsByRound).forEach(([rKey, pts]) => {
+          if (pts.length > 1) {
+            const poly = L.polyline(pts, {
+              color: roundLineColors[rKey] || '#2563eb',
+              weight: 3.5,
+              opacity: currentRouteOpacity,
+              dashArray: '6, 6',
+              lineJoin: 'round'
+            }).addTo(map);
+            routePolylines.push(poly);
+          }
+        });
+      }
+
+      // Update counters
+      document.getElementById('stat-visible').innerText = visibleStops.length;
+      document.getElementById('list-count-label').innerText = `Arrêts (${visibleStops.length})`;
+
+      // Render List
+      renderStopsList(visibleStops);
+    }
+
+    function renderStopsList(stops) {
+      const listContainer = document.getElementById('stops-list');
+      listContainer.innerHTML = '';
+
+      if (stops.length === 0) {
+        listContainer.innerHTML = `
+          <div style="text-align:center; padding: 40px 20px; color: #94a3b8;">
+            <p style="font-size: 1.5rem; margin-bottom: 8px;">🔍</p>
+            <p style="font-weight: 600;">Aucun arrêt ne correspond à votre recherche.</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Populate list items (Strict Rule: Number on Top, Street on Bottom)
+      stops.forEach(stop => {
+        const card = document.createElement('div');
+        card.className = 'stop-card';
+        card.id = `card-${stop.id}`;
+
+        const numDisplay = stop.number || stop.cell_label || '—';
+        const roundColor = getStopColor(stop);
+
+        let badgeTag = '';
+        if (stop.is_battery) {
+          badgeTag = `<span class="card-battery-tag">📮 Batterie</span>`;
+        }
+
+        card.innerHTML = `
+          <!-- STRICT RULE: NUMBER ON TOP ROW -->
+          <div class="card-top-row">
+            <div class="card-num-group">
+              <span class="card-num">${numDisplay}</span>
+              ${stop.cell_label && stop.cell_label !== numDisplay ? `<span class="card-cell-label">${stop.cell_label}</span>` : ''}
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              ${badgeTag}
+              <span class="card-seq-badge">#${stop.id}</span>
+            </div>
+          </div>
+
+          <!-- STRICT RULE: STREET BANNER ON BOTTOM -->
+          <div class="card-bottom-banner" style="background: ${roundColor};">
+            <span>${stop.street}</span>
+            <span class="card-section-code">${stop.round ? stop.round + ' · ' : ''}${stop.section || ''}</span>
+          </div>
+        `;
+
+        card.addEventListener('click', () => {
+          zoomToStop(stop);
+        });
+
+        listContainer.appendChild(card);
+      });
+    }
+
+    function zoomToStop(stop) {
+      if (!stop.lat || !stop.lon) return;
+
+      if (window.innerWidth <= 768) {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+          sidebar.classList.add('collapsed');
+          setTimeout(() => map.invalidateSize(), 310);
+        }
+      }
+
+      map.flyTo([stop.lat, stop.lon], 18, {
+        animate: true,
+        duration: 0.8
+      });
+
+      const marker = markerMap.get(stop.id);
+      if (marker) {
+        setTimeout(() => {
+          marker.openPopup();
+        }, 850);
+      } else {
+        setTimeout(() => {
+          L.popup({ maxWidth: 320, className: "postal-popup" })
+            .setLatLng([stop.lat, stop.lon])
+            .setContent(createPopupHtml(stop))
+            .openOn(map);
+        }, 850);
+      }
+
+      highlightListItem(stop.id);
+    }
+
+    function highlightListItem(stopId) {
+      document.querySelectorAll('.stop-card.selected').forEach(c => c.classList.remove('selected'));
+      const card = document.getElementById(`card-${stopId}`);
+      if (card) {
+        card.classList.add('selected');
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    function fitAllMarkers() {
+      const validPoints = STOPS_DATA.filter(p => p.lat && p.lon && (!p.round || activeRounds.has(String(p.round)))).map(p => [p.lat, p.lon]);
+      if (validPoints.length > 0) {
+        map.fitBounds(L.latLngBounds(validPoints).pad(0.08));
+      }
+    }
+
+    // Setup Event Listeners
+    function setupListeners() {
+      // Round checkboxes (2402 / 2502) and preset buttons
+      const hasRounds = STOPS_DATA.some(s => s.round);
+      const roundsBox = document.getElementById('rounds-selector-box');
+      if (roundsBox && !hasRounds) {
+        roundsBox.style.display = 'none';
+      }
+
+      const syncRoundPresetButtons = () => {
+        const has24 = activeRounds.has('2402');
+        const has25 = activeRounds.has('2502');
+        document.querySelectorAll('[data-round-preset]').forEach(btn => {
+          const p = btn.getAttribute('data-round-preset');
+          const isActive = (p === 'both' && has24 && has25) || (p === '2402' && has24 && !has25) || (p === '2502' && !has24 && has25);
+          btn.classList.toggle('active', isActive);
+        });
+      };
+
+      document.querySelectorAll('.round-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+          activeRounds.clear();
+          document.querySelectorAll('.round-checkbox:checked').forEach(c => activeRounds.add(c.value));
+          syncRoundPresetButtons();
+          filterAndRender();
+          fitAllMarkers();
+        });
+      });
+
+      document.querySelectorAll('[data-round-preset]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const p = btn.getAttribute('data-round-preset');
+          activeRounds.clear();
+          if (p === 'both') {
+            activeRounds.add('2402');
+            activeRounds.add('2502');
+          } else {
+            activeRounds.add(p);
+          }
+          document.querySelectorAll('.round-checkbox').forEach(cb => {
+            cb.checked = activeRounds.has(cb.value);
+          });
+          syncRoundPresetButtons();
+          filterAndRender();
+          fitAllMarkers();
+        });
+      });
+      // Search input
+      const searchInput = document.getElementById('search-input');
+      const clearSearchBtn = document.getElementById('clear-search');
+
+      searchInput.addEventListener('input', (e) => {
+        searchQuery = e.target.value;
+        clearSearchBtn.style.display = searchQuery ? 'block' : 'none';
+        filterAndRender();
+      });
+
+      clearSearchBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        searchQuery = '';
+        clearSearchBtn.style.display = 'none';
+        filterAndRender();
+      });
+
+      // Sheet chips
+      document.querySelectorAll('[data-sheet]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('[data-sheet]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentSheet = btn.getAttribute('data-sheet');
+          filterAndRender();
+        });
+      });
+
+      // Section dropdown
+      document.getElementById('section-select').addEventListener('change', (e) => {
+        currentSection = e.target.value;
+        filterAndRender();
+      });
+
+      // Type chips
+      document.querySelectorAll('[data-type]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('[data-type]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentType = btn.getAttribute('data-type');
+          filterAndRender();
+        });
+      });
+
+      // Street dropdown
+      document.getElementById('street-select').addEventListener('change', (e) => {
+        currentStreet = e.target.value;
+        filterAndRender();
+      });
+
+      // Itinerary route toggle
+      document.getElementById('toggle-route').addEventListener('change', () => {
+        filterAndRender();
+      });
+      const toggleCasesEl = document.getElementById('toggle-cases');
+      if (toggleCasesEl) {
+        toggleCasesEl.addEventListener('change', () => {
+          filterAndRender();
+        });
+      }
+
+      // Sidebar collapse toggle
+      const sidebar = document.getElementById('sidebar');
+      const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+      const closeSidebarBtn = document.getElementById('close-sidebar-btn');
+
+      toggleSidebarBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        setTimeout(() => {
+          map.invalidateSize();
+          fitAllMarkers();
+        }, 310);
+      });
+
+      closeSidebarBtn.addEventListener('click', () => {
+        sidebar.classList.add('collapsed');
+        setTimeout(() => {
+          map.invalidateSize();
+          fitAllMarkers();
+        }, 310);
+      });
+
+      // Vertical Resizer between Controls Panel and Stops List
+      const controlsPanel = document.querySelector('.controls-panel');
+      const panelResizer = document.getElementById('panel-resizer');
+      const toggleControlsBtn = document.getElementById('toggle-controls-btn');
+      let isResizing = false;
+      let startY = 0;
+      let startHeight = 0;
+
+      if (panelResizer && controlsPanel) {
+        const startDrag = (clientY) => {
+          isResizing = true;
+          startY = clientY;
+          startHeight = controlsPanel.getBoundingClientRect().height;
+          controlsPanel.classList.remove('collapsed-panel');
+          controlsPanel.style.maxHeight = 'none';
+          controlsPanel.style.height = startHeight + 'px';
+          panelResizer.classList.add('dragging');
+          document.body.style.cursor = 'ns-resize';
+        };
+
+        const onDrag = (clientY) => {
+          if (!isResizing) return;
+          const newHeight = Math.max(0, Math.min(window.innerHeight * 0.78, startHeight + (clientY - startY)));
+          if (newHeight <= 2) {
+            controlsPanel.classList.add('collapsed-panel');
+            controlsPanel.style.height = '0px';
+          } else {
+            controlsPanel.classList.remove('collapsed-panel');
+            controlsPanel.style.maxHeight = 'none';
+            controlsPanel.style.height = newHeight + 'px';
+            controlsPanel.style.paddingTop = newHeight < 24 ? '0px' : '';
+            controlsPanel.style.paddingBottom = newHeight < 24 ? '0px' : '';
+          }
+          if (toggleControlsBtn) {
+            toggleControlsBtn.innerText = newHeight < 30 ? '▼ Étendre' : '▲ Réduire';
+          }
+        };
+
+        const stopDrag = () => {
+          if (!isResizing) return;
+          isResizing = false;
+          panelResizer.classList.remove('dragging');
+          document.body.style.cursor = '';
+        };
+
+        panelResizer.addEventListener('mousedown', (e) => {
+          if (e.target === toggleControlsBtn) return;
+          startDrag(e.clientY);
+          e.preventDefault();
+        });
+        window.addEventListener('mousemove', (e) => onDrag(e.clientY));
+        window.addEventListener('mouseup', stopDrag);
+
+        panelResizer.addEventListener('touchstart', (e) => {
+          if (e.target === toggleControlsBtn) return;
+          if (e.touches.length === 1) startDrag(e.touches[0].clientY);
+        }, { passive: true });
+        window.addEventListener('touchmove', (e) => {
+          if (isResizing && e.touches.length === 1) onDrag(e.touches[0].clientY);
+        }, { passive: true });
+        window.addEventListener('touchend', stopDrag);
+
+        if (toggleControlsBtn) {
+          toggleControlsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isCollapsed = controlsPanel.classList.toggle('collapsed-panel');
+            if (!isCollapsed) {
+              controlsPanel.style.height = '';
+              controlsPanel.style.maxHeight = '';
+              controlsPanel.style.paddingTop = '';
+              controlsPanel.style.paddingBottom = '';
+            }
+            toggleControlsBtn.innerText = isCollapsed ? '▼ Étendre' : '▲ Réduire';
+          });
+        }
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initMap();
+      setupListeners();
+    });
+  </script>
+</body>
+</html>
