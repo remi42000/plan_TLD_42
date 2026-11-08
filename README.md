@@ -1,20 +1,20 @@
 # plan_TLD_42
-Application Android (APK WebView) regroupant les plans interactifs des tournées La Poste dans la Loire
+Android app (APK WebView) bringing together the interactive maps of La Poste delivery routes in the Loire department (France).
 
-## Télécharger l'application (APK)
+## Download the app (APK)
 
-**Étape 1 :** sur cette page, cliquez sur **Releases** (dans la colonne de droite sur ordinateur, ou plus bas sur la page sur téléphone). Lien direct : [Releases](https://github.com/remi42000/plan_TLD_42/releases)
+**Step 1:** on this page, click **Releases** (in the right-hand column on a computer, or further down the page on a phone). Direct link: [Releases](https://github.com/remi42000/plan_TLD_42/releases)
 
-**Étape 2 :** ouvrez la dernière version.
+**Step 2:** open the latest version.
 
-**Étape 3 :** dans la partie **Assets**, cliquez sur le fichier **.apk** pour le télécharger.
+**Step 3:** in the **Assets** section, click the **.apk** file to download it.
 
-**Étape 4 :** ouvrez le fichier téléchargé pour installer l'application. Si le téléphone bloque l'installation, autorisez l'installation d'applications de sources inconnues pour votre navigateur ou votre gestionnaire de fichiers.
+**Step 4:** open the downloaded file to install the app. If your phone blocks the installation, allow installing apps from unknown sources for your browser or file manager.
 
-## Anciennes versions
+## Old versions
 
-Les 20 anciennes versions de l'application sont disponibles dans la release [Anciennes versions](https://github.com/remi42000/plan_TLD_42/releases/tag/anciennes-versions).
+The 20 older versions of the app are available in the [Old APK versions](https://github.com/remi42000/plan_TLD_42/releases/tag/anciennes-versions) release.
 
-L'historique détaillé de toutes les versions est dans le fichier [README_APK_VERSIONS.txt](README_APK_VERSIONS.txt).
+The detailed history of every version is in the [README_APK_VERSIONS.txt](README_APK_VERSIONS.txt) file.
 
-Les anciennes versions des plans HTML sont dans la release [Old HTML file versions](https://github.com/remi42000/plan_TLD_42/releases/tag/old-html-versions).
+Older versions of the HTML maps are in the [Old HTML file versions](https://github.com/remi42000/plan_TLD_42/releases/tag/old-html-versions) release.
