@@ -10,3 +10,9 @@ Application Android (APK WebView) regroupant les plans interactifs des tournées
 **Étape 3 :** dans la partie **Assets**, cliquez sur le fichier **.apk** pour le télécharger.
 
 **Étape 4 :** ouvrez le fichier téléchargé pour installer l'application. Si le téléphone bloque l'installation, autorisez l'installation d'applications de sources inconnues pour votre navigateur ou votre gestionnaire de fichiers.
+
+## Anciennes versions
+
+Les 20 anciennes versions de l'application sont disponibles dans la release [Anciennes versions](https://github.com/remi42000/plan_TLD_42/releases/tag/anciennes-versions).
+
+L'historique détaillé de toutes les versions est dans le fichier [README_APK_VERSIONS.txt](README_APK_VERSIONS.txt).
