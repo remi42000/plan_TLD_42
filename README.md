@@ -16,3 +16,5 @@ Application Android (APK WebView) regroupant les plans interactifs des tournées
 Les 20 anciennes versions de l'application sont disponibles dans la release [Anciennes versions](https://github.com/remi42000/plan_TLD_42/releases/tag/anciennes-versions).
 
 L'historique détaillé de toutes les versions est dans le fichier [README_APK_VERSIONS.txt](README_APK_VERSIONS.txt).
+
+Les anciennes versions des plans HTML sont dans la release [Old HTML file versions](https://github.com/remi42000/plan_TLD_42/releases/tag/old-html-versions).
