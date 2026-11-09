@@ -1,5 +1,5 @@
 # plan_TLD_42
-Android app (APK WebView) bringing together the interactive maps of La Poste delivery routes in the Loire department (France).
+Android app (APK WebView) bringing together the interactive maps of delivery routes in the Loire department (France).
 
 ## Download the app (APK)
 
